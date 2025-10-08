@@ -1,4 +1,3 @@
-import { Link } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -25,11 +24,10 @@ export default function Login() {
         </TouchableOpacity>
       </View>
 
-      {/* "¿Olvidaste tu contraseña?" al final de la pantalla */}
       <View style={styles.passwordContainer}>
-        <Link href="/forgotpassword" style={styles.passwordLink}>
-          ¿Olvidaste tu contraseña?
-        </Link>
+        <TouchableOpacity style={styles.passwordForgot}>
+          <Text style={styles.passwordButton}>¿Olvidaste tu contraseña?</Text> 
+        </TouchableOpacity>
       </View>
     </>
   );
@@ -85,10 +83,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
   },
-  passwordLink: {
-    color: '#11B0E1',
-    fontSize: 16,
-    fontWeight: 'bold',
+  passwordForgot: { 
+    alignItems: 'center',
+  },
+  passwordButton: {
     textDecorationLine: 'underline',
+    color: '#11B0E1',
+    fontWeight: 'bold',
   },
 });
