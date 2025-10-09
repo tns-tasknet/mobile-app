@@ -4,7 +4,7 @@ import { betterAuth } from "better-auth";
 export const auth = betterAuth({
     plugins: [expo()],
     emailAndPassword: { 
-        enabled: true, // Enable authentication using email and password.
+        enabled: true,
     }, 
     trustedOrigins: ["tnsnet-tasknet://"],
 });
