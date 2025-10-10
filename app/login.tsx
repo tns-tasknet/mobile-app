@@ -1,7 +1,18 @@
-import React from 'react';
+import { authClient } from "@/lib/auth-client";
+import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function Login() {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
+    const handleLogin = async () => {
+        await authClient.signIn.email({
+            email,
+            password,
+        })
+    };
+  
   return (
     <>
       <View style={styles.container}>
@@ -12,14 +23,18 @@ export default function Login() {
           placeholderTextColor="#3862CC"
           keyboardType="email-address"
           autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
         />
         <TextInput
           style={styles.input}
           placeholder="Contraseña"
           placeholderTextColor="#3862CC"
           secureTextEntry
+          value={password}
+          onChangeText={setPassword}
         />
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button}  onPress={handleLogin}>
           <Text style={styles.buttonText}>Entrar</Text>
         </TouchableOpacity>
       </View>
