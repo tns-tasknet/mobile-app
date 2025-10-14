@@ -2,15 +2,15 @@ import { Link } from "expo-router";
 import { View } from "react-native";
 
 export default function Index() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Link href="/login">Login.</Link>
-    </View>
-  );
+	return (
+		<View
+			style={{
+				flex: 1,
+				justifyContent: "center",
+				alignItems: "center",
+			}}
+		>
+			<Link href="/login">Login.</Link>
+		</View>
+	);
 }
