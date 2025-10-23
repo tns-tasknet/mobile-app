@@ -16,6 +16,11 @@ export default function Dashboard() {
         await authClient.signOut()
     };
 
+    const goToOrganizations = () => {
+        router.push("/organizations");
+    };
+
+
     return (
         <View
             style={{
@@ -26,6 +31,7 @@ export default function Dashboard() {
         >
             <Text>Hello `{session?.user.name}`.</Text>
             <Button title="Logout" onPress={handleLogout} />
+            <Button title="Organizations" onPress={goToOrganizations} />
         </View>
     )
 }
