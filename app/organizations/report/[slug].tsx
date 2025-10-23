@@ -1,15 +1,17 @@
 import { authClient } from "@/lib/auth-client";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Button, Text, View } from "react-native";
 
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
 
-export default function Index() {
+export default function OrganizationReport() {
+    const { slug } = useLocalSearchParams();
     const { data: session, isPending } = authClient.useSession();
-    const [organizations, setOrganizations] = useState<any[]>([]);
+    const [reports, setReports] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
 
     useEffect(() => {
         if (isPending) return;
@@ -19,12 +21,12 @@ export default function Index() {
             return;
         }
 
-        const fetchOrganizations = async () => {
+        const fetchReports = async () => {
             try {
                 setLoading(true);
                 setErrorMsg(null);
 
-                const res = await authClient.$fetch<any[]>(`${baseURL}/api/v1/organizations`, {
+                const res = await authClient.$fetch<any[]>(`${baseURL}/api/v1/${slug}/reports`, {
                     method: "GET",
                 });
 
@@ -33,44 +35,43 @@ export default function Index() {
                 }
 
                 if (res.data) {
-                    console.log("Organizaciones:", res.data);
-                    setOrganizations(res.data);
+                    console.log("Reportes:", res.data);
+                    setReports(res.data);
                 } else {
-                    setOrganizations([]);
+                    setReports([]);
                 }
             } catch (err: any) {
-                console.error("Error al obtener organizaciones:", err);
+                console.error("Error al obtener los reportes:", err);
                 setErrorMsg(err.message || "Error desconocido");
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchOrganizations();
+        fetchReports();
     }, [session, isPending]);
 
     if (loading) return <Text>Cargando organizaciones...</Text>;
     if (errorMsg) return <Text>Error: {errorMsg}</Text>;
 
-
-    const goToReport = (slug: any) => {
-        router.push(`/organizations/report/${slug}`);
+    const goToReportDetails = (reportId: any) => {
+        router.push(`/organizations/report/details/${reportId}`);
     };
 
     return (
         <View>
-            {organizations.length > 0 ? (
-                organizations.map((org, index) => (
+            {reports.length > 0 ? (
+                reports.map((report, index) => (
                     <View key={index} style={{ marginBottom: 10 }}>
-                        <Text>{JSON.stringify(org)}</Text>
+                        <Text>ID: {JSON.stringify(report)}</Text>
                         <Button
-                            title="Reporte"
-                            onPress={() => goToReport(org.slug)} 
+                            title="Ver detalles"
+                            onPress={() => goToReportDetails(report.id)}
                         />
                     </View>
                 ))
             ) : (
-                <Text>No hay organizaciones disponibles.</Text>
+                <Text>No hay reportes disponibles.</Text>
             )}
         </View>
 
