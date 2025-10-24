@@ -10,7 +10,7 @@ export default function RootLayout() {
         screenOptions={{ headerShown: false }}
       >
         {/* El stack screen aparentemente es para mostrar la pagina inicial apenas inicies la app  */}
-        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
       </Stack>
     </GestureHandlerRootView>
   );

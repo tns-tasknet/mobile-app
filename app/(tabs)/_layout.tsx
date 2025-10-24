@@ -1,12 +1,18 @@
 import { Drawer } from 'expo-router/drawer'
 import React from 'react'
 
-const Layout = () => {
+export default function Layout() {
 
     // Este Layout es para poder usar el Drawer
   return (
-    <Drawer />
+    <Drawer>
+      <Drawer.Screen name="dashboard" options={{ 
+        title: 'Menu Principal',
+        }} 
+        />
+
+
+    </Drawer>
   )
 }
 
-export default Layout
