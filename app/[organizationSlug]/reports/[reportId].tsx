@@ -1,13 +1,16 @@
 import { authClient } from "@/lib/auth-client";
+import { Picker } from "@react-native-picker/picker"; // 👈 Asegúrate de instalarlo: `expo install @react-native-picker/picker`
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  Button,
   Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  View
+  TextInput,
+  View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
@@ -62,6 +65,8 @@ export default function OrganizationReport() {
     fetchReportDetails();
   }, [isPending, session, reportId, organizationSlug]);
 
+
+
   // === ACTUALIZAR REPORTE ===
   const updateReport = async () => {
     if (!session) return;
@@ -78,11 +83,16 @@ export default function OrganizationReport() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            response: responseText || "test",
-            status: "COMPLETED",
+            response: responseText,
+            status,
           }),
         }
       );
+      console.log(
+  "Sesión después del PATCH:",
+  JSON.stringify(await authClient.getSession(), null, 2)
+);
+
 
       console.log("Reporte actualizado:", res);
       setReport(res.data || null);
@@ -122,8 +132,32 @@ export default function OrganizationReport() {
               <Text>Slug: {report.slugText}</Text>
               <Text>Logo: {report.logo}</Text>
               <Text>Metadata: {report.metadata}</Text>
-              <Text>Status actual: {report.status}</Text>
+              <Text>Response: {report.response}</Text>
+              <Text>State: {report.status}</Text>
 
+              {/* === CAMPOS EDITABLES === */}
+              <Text style={styles.sectionTitle}>Editar respuesta:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Escribe una respuesta..."
+                value={responseText}
+                onChangeText={setResponseText}
+                multiline
+              />
+
+              <Text style={styles.sectionTitle}>Cambiar estado:</Text>
+              <Picker
+                selectedValue={status}
+                onValueChange={(itemValue) => setStatus(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="PENDING" value="PENDING" />
+                <Picker.Item label="SCHEDULED" value="SCHEDULED" />
+                <Picker.Item label="IN_PROGRESS" value="IN_PROGRESS" />
+                <Picker.Item label="COMPLETED" value="COMPLETED" />
+              </Picker>
+
+              <Button title="Actualizar Reporte" onPress={updateReport} />
             </View>
           ) : (
             <Text style={styles.infoText}>No hay detalles disponibles.</Text>
@@ -153,7 +187,7 @@ const styles = StyleSheet.create({
     margin: 15,
   },
   reportTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
     color: "#333",
@@ -163,9 +197,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,
-    backgroundColor: "#FAF9F6",
+    backgroundColor: "#fff",
     padding: 10,
     marginVertical: 10,
+    minHeight: 60,
+    textAlignVertical: "top",
+  },
+  picker: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    marginVertical: 10,
+  },
+  sectionTitle: {
+    fontWeight: "bold",
+    marginTop: 10,
+    color: "#333",
   },
   infoText: {
     fontSize: 16,
