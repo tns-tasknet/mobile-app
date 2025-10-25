@@ -1,17 +1,21 @@
+import { useNetwork } from "@/hooks/useNetwork";
+import { useWaitForConnection } from "@/hooks/useWaitForConnection";
+import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Button, Platform, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Alert, Button, Platform, StatusBar, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function OrganizationReport() {
   const { organizationSlug } = useLocalSearchParams();
   const { data: session, isPending } = authClient.useSession();
+  const isOnline = useNetwork();
+  const waitForConnection = useWaitForConnection();
+
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
 
   // Marca que ya terminó la comprobación de sesión
@@ -35,7 +39,6 @@ export default function OrganizationReport() {
     const fetchReports = async () => {
       try {
         setLoading(true);
-        setErrorMsg(null);
 
         console.log("Slug de organización:", organizationSlug);
 
@@ -44,13 +47,28 @@ export default function OrganizationReport() {
           { method: "GET" }
         );
 
-        if (res.error) throw new Error(res.error.message || "Error desconocido");
+        const hasError = await handleApiError(res, {
+          onConflictReload: fetchReports,
+          isOnline,
+        });
+
+        if (hasError) return;
 
         console.log("Reportes:", res.data || []);
         setReports(res.data || []);
       } catch (err: any) {
-        console.error("Error al obtener los reportes:", err);
-        setErrorMsg(err.message || "Error desconocido");
+        if (!isOnline) {
+            Alert.alert(
+              "Sin conexión",
+              "No se pudo conectar al servidor. Se reintentará automáticamente cuando vuelva internet."
+            );
+            waitForConnection(fetchReports);
+            return;
+          }
+
+        Alert.alert(
+          "Error",
+          err?.message || "Error desconocido");
       } finally {
         setLoading(false);
       }
@@ -60,7 +78,7 @@ export default function OrganizationReport() {
   }, [session, organizationSlug, sessionChecked]);
 
   if (loading) return <Text style={styles.infoText}>Cargando reportes...</Text>;
-  if (errorMsg) return <Text style={styles.errorText}>Error: {errorMsg}</Text>;
+  if (!session) return null; 
 
   const goToReportDetails = (reportId: any) => {
     router.push(`${organizationSlug}/reports/${reportId}`);

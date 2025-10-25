@@ -1,13 +1,19 @@
+import { useNetwork } from "@/hooks/useNetwork";
+import { useWaitForConnection } from "@/hooks/useWaitForConnection";
+import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Button, StyleSheet, Text, View } from "react-native";
+import { Alert, Button, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function Index() {
   const { data: session, isPending } = authClient.useSession();
+  const isOnline = useNetwork();
+  const waitForConnection = useWaitForConnection();
+
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -36,14 +42,30 @@ export default function Index() {
           method: "GET",
         });
 
-        if (res.error) throw new Error(res.error.message || "Error desconocido");
+        const hasError = await handleApiError(res, {
+          onConflictReload: fetchOrganizations,
+          isOnline,
+        });
+
+        if (hasError) return;
 
         const fetchedOrgs = Array.isArray(res.data) ? res.data : [];
         console.log("Organizaciones:", fetchedOrgs);
         setOrganizations(fetchedOrgs);
       } catch (err: any) {
-        console.error("Error al obtener organizaciones:", err);
-        setErrorMsg(err.message || "Error desconocido");
+        console.log(isOnline)
+        if (!isOnline) {
+            Alert.alert(
+              "Sin conexión",
+              "No se pudo conectar al servidor. Se reintentará automáticamente cuando vuelva internet."
+            );
+            waitForConnection(fetchOrganizations);
+            return;
+          }
+        Alert.alert(
+            "Error",
+            err?.message || "Error desconocido");
+
       } finally {
         setLoading(false);
       }
@@ -53,7 +75,6 @@ export default function Index() {
   }, [session, isPending, organizations.length]);
 
   if (loading) return <Text style={styles.infoText}>Cargando organizaciones...</Text>;
-  if (errorMsg) return <Text style={styles.errorText}>Error: {errorMsg}</Text>;
   if (!session) return null; // protege render mientras se redirige
 
   const goToReport = (slug: string) => {

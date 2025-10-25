@@ -1,3 +1,6 @@
+import { useNetwork } from "@/hooks/useNetwork";
+import { useWaitForConnection } from "@/hooks/useWaitForConnection";
+import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
 import { Picker } from "@react-native-picker/picker";
 import { useLocalSearchParams } from "expo-router";
@@ -15,53 +18,72 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
+
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function OrganizationReport() {
   const { reportId, organizationSlug } = useLocalSearchParams();
   const { data: session, isPending } = authClient.useSession();
+  const isOnline = useNetwork();
+  const waitForConnection = useWaitForConnection();
 
   const [report, setReport] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [responseText, setResponseText] = useState("");
   const [status, setStatus] = useState<
     "PENDING" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED"
   >("PENDING");
 
   const fetchReportDetails = async () => {
-      try {
-        setLoading(true);
-        setErrorMsg(null);
+    try {
+      setLoading(true);
 
-        const res = await authClient.$fetch<any>(
-          `${baseURL}/api/v1/${organizationSlug}/reports/${reportId}`,
-          { method: "GET" }
-        );
+      const res = await authClient.$fetch<any>(
+        `${baseURL}/api/v1/${organizationSlug}/reports/${reportId}`,
+        { method: "GET" }
+      );
 
-        console.log("Respuesta del fetch:", res.data);
-        const fetchedReport =
-          res.data && Array.isArray(res.data) ? res.data[0] : res.data || null;
+      console.log("Respuesta del fetch:", res.data);
+      const fetchedReport =
+        res.data && Array.isArray(res.data) ? res.data[0] : res.data || null;
 
-        setReport(fetchedReport);
+      const hasError = await handleApiError(res, {
+        onConflictReload: fetchReportDetails,
+        isOnline,
+      });
 
-        if (fetchedReport) {
-          setResponseText(fetchedReport.response || "");
-          setStatus(fetchedReport.status || "PENDING");
-        }
-      } catch (err: any) {
-        console.error("Error al obtener el reporte:", err);
-        setErrorMsg(err.message || "Error desconocido");
-      } finally {
-        setLoading(false);
+      if (hasError) return;
+      
+      setReport(fetchedReport);
+
+      if (fetchedReport) {
+        setResponseText(fetchedReport.response || "");
+        setStatus(fetchedReport.status || "PENDING");
       }
-    };
-    
+    } catch (err: any) {
+      if (!isOnline) {
+            Alert.alert(
+              "Sin conexión",
+              "No se pudo conectar al servidor. Se reintentará automáticamente cuando vuelva internet."
+            );
+            waitForConnection(fetchReportDetails);
+          return;
+        }
+        
+      console.error("Error al obtener el reporte:", err);
+      Alert.alert(
+        "Error",
+        err?.message || "Error desconocido");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // === FETCH DEL REPORTE ===
   useEffect(() => {
     if (isPending) return;
     if (!session) return;
-    if (report) return; 
+    if (report) return;
 
     fetchReportDetails();
   }, [isPending, session, reportId, organizationSlug]);
@@ -74,7 +96,6 @@ export default function OrganizationReport() {
 
     try {
       setLoading(true);
-      setErrorMsg(null);
 
       const res = await authClient.$fetch<any>(
         `${baseURL}/api/v1/${organizationSlug}/reports/${reportId}`,
@@ -89,29 +110,14 @@ export default function OrganizationReport() {
           }),
         }
       );
-      console.log(
-        "Sesión después del PATCH:",
-        JSON.stringify(await authClient.getSession(), null, 2)
-      );
+      
 
-
+      const hasError = await handleApiError(res, {
+        onConflictReload: fetchReportDetails,
+        isOnline,
+      });
+      if (hasError) return;
       console.log("Reporte actualizado:", res);
-      if (res.error?.status === 403) {
-        Alert.alert(
-          "Error",
-          "No se puede actualizar una orden con status: COMPLETED"
-        );
-        return; 
-      }
-
-      if (res.error?.status === 409) {
-        Alert.alert(
-          "Error",
-          "La orden fue modificada por otro usuario. Por favor, recargue antes de editar."
-        );
-        fetchReportDetails();
-        return; 
-      }
 
       setReport(res.data || null);
     } catch (err: any) {

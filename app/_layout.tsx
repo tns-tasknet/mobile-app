@@ -1,19 +1,29 @@
+import { useNetwork } from "@/hooks/useNetwork";
 import { Stack } from "expo-router";
+import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-
-// Este layout es el layout raiz de la aplicacion, es decir, el que engloba a todos los demas layouts y pantallas
+// Este layout es el layout raíz de la aplicación
 export default function RootLayout() {
+  const isOnline = useNetwork();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Banner global de conexión */}
+      {!isOnline && (
+        <View style={{ backgroundColor: "red", padding: 8 }}>
+          <Text style={{ color: "#fff", textAlign: "center" }}>
+            Sin conexión a Internet
+          </Text>
+        </View>
+      )}
+
       <Stack
         screenOptions={{ headerShown: false }}
       >
-        {/* El stack screen aparentemente es para mostrar la pagina inicial apenas inicies la app  */}
+        {/* Pantalla inicial */}
         <Stack.Screen name="login" />
       </Stack>
     </GestureHandlerRootView>
   );
 }
-  
-
