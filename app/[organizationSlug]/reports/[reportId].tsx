@@ -1,8 +1,9 @@
 import { authClient } from "@/lib/auth-client";
-import { Picker } from "@react-native-picker/picker"; // 👈 Asegúrate de instalarlo: `expo install @react-native-picker/picker`
+import { Picker } from "@react-native-picker/picker";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Button,
   Platform,
   ScrollView,
@@ -28,13 +29,7 @@ export default function OrganizationReport() {
     "PENDING" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED"
   >("PENDING");
 
-  // === FETCH DEL REPORTE ===
-  useEffect(() => {
-    if (isPending) return;
-    if (!session) return;
-    if (report) return; // evita recargar
-
-    const fetchReportDetails = async () => {
+  const fetchReportDetails = async () => {
       try {
         setLoading(true);
         setErrorMsg(null);
@@ -61,6 +56,12 @@ export default function OrganizationReport() {
         setLoading(false);
       }
     };
+    
+  // === FETCH DEL REPORTE ===
+  useEffect(() => {
+    if (isPending) return;
+    if (!session) return;
+    if (report) return; 
 
     fetchReportDetails();
   }, [isPending, session, reportId, organizationSlug]);
@@ -89,16 +90,35 @@ export default function OrganizationReport() {
         }
       );
       console.log(
-  "Sesión después del PATCH:",
-  JSON.stringify(await authClient.getSession(), null, 2)
-);
+        "Sesión después del PATCH:",
+        JSON.stringify(await authClient.getSession(), null, 2)
+      );
 
 
       console.log("Reporte actualizado:", res);
+      if (res.error?.status === 403) {
+        Alert.alert(
+          "Error",
+          "No se puede actualizar una orden con status: COMPLETED"
+        );
+        return; 
+      }
+
+      if (res.error?.status === 409) {
+        Alert.alert(
+          "Error",
+          "La orden fue modificada por otro usuario. Por favor, recargue antes de editar."
+        );
+        fetchReportDetails();
+        return; 
+      }
+
       setReport(res.data || null);
     } catch (err: any) {
       console.error("Error al actualizar reporte:", err);
-      setErrorMsg(err.message || "Error desconocido");
+      Alert.alert(
+        "Error",
+        err?.message || "Error desconocido");
     } finally {
       setLoading(false);
     }
@@ -112,21 +132,14 @@ export default function OrganizationReport() {
       </View>
     );
 
-  if (errorMsg)
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Error: {errorMsg}</Text>
-      </View>
-    );
-
   // === UI PRINCIPAL ===
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={report ? undefined : styles.centered}>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={report ? undefined : { flex: 1, justifyContent: "center", alignItems: "center" }}>
           {report ? (
-            <View style={styles.card}>
-              <Text style={styles.reportTitle}>{report.title}</Text>
+            <View style={{ padding: 16, backgroundColor: "#fff", margin: 16, borderRadius: 8, elevation: 3 }}>
+              <Text style={{ fontSize: 20, fontWeight: "bold" }}>{report.title}</Text>
               <Text>ID: {report.id}</Text>
               <Text>Contenido: {report.content}</Text>
               <Text>Slug: {report.slugText}</Text>
@@ -136,20 +149,20 @@ export default function OrganizationReport() {
               <Text>State: {report.status}</Text>
 
               {/* === CAMPOS EDITABLES === */}
-              <Text style={styles.sectionTitle}>Editar respuesta:</Text>
+              <Text style={{ marginTop: 16, fontWeight: "bold" }}>Editar respuesta:</Text>
               <TextInput
-                style={styles.input}
+                style={{ borderWidth: 1, borderColor: "#ccc", padding: 8, marginVertical: 8, borderRadius: 4 }}
                 placeholder="Escribe una respuesta..."
                 value={responseText}
                 onChangeText={setResponseText}
                 multiline
               />
 
-              <Text style={styles.sectionTitle}>Cambiar estado:</Text>
+              <Text style={{ fontWeight: "bold" }}>Cambiar estado:</Text>
               <Picker
                 selectedValue={status}
                 onValueChange={(itemValue) => setStatus(itemValue)}
-                style={styles.picker}
+                style={{ marginVertical: 8 }}
               >
                 <Picker.Item label="PENDING" value="PENDING" />
                 <Picker.Item label="SCHEDULED" value="SCHEDULED" />
@@ -157,16 +170,16 @@ export default function OrganizationReport() {
                 <Picker.Item label="COMPLETED" value="COMPLETED" />
               </Picker>
 
-              <Button title="Actualizar Reporte" onPress={updateReport} />
+              <Button title="Actualizar Reporte" onPress={updateReport} disabled={loading} />
             </View>
           ) : (
-            <Text style={styles.infoText}>No hay detalles disponibles.</Text>
+            <Text style={{ textAlign: "center", marginTop: 50 }}>No hay detalles disponibles.</Text>
           )}
         </ScrollView>
       </SafeAreaView>
     </SafeAreaProvider>
   );
-}
+};
 
 // === ESTILOS ===
 const styles = StyleSheet.create({
