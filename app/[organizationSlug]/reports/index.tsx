@@ -29,7 +29,7 @@ export default function OrganizationReport() {
     // Si no hay sesión, redirige al login
     if (!session) {
       console.log("No hay sesión activa, redirigiendo al login...");
-      router.replace("/login");
+      router.push("/login");
       return;
     }
 
@@ -81,7 +81,7 @@ export default function OrganizationReport() {
   if (!session) return null; 
 
   const goToReportDetails = (reportId: any) => {
-    router.replace(`${organizationSlug}/reports/${reportId}`);
+    router.push(`${organizationSlug}/reports/${reportId}`);
   };
 
   return (

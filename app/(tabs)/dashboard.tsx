@@ -17,7 +17,7 @@ export default function Dashboard() {
     };
 
     const goToOrganizations = () => {
-        router.replace("/organizations");
+        router.push("/organizations");
     };
 
     return (

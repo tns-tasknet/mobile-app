@@ -20,7 +20,7 @@ export default function Index() {
 
   const redirectToLogin = () => {
     console.log("No hay sesión activa, redirigiendo al login...");
-    router.replace("/login"); // replace para no permitir volver atrás
+    router.push("/login"); // replace para no permitir volver atrás
   };
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function Index() {
   if (!session) return null; // protege render mientras se redirige
 
   const goToReport = (slug: string) => {
-    router.replace(`${slug}/reports/`);
+    router.push(`${slug}/reports/`);
   };
 
   return (
