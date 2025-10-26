@@ -8,7 +8,7 @@ export default function Dashboard() {
 
     useEffect(() => {
         if (!session && !isPending) {
-            router.push("/login");
+            router.replace("/login");
         }
     }, [session, isPending]);
 
@@ -17,9 +17,8 @@ export default function Dashboard() {
     };
 
     const goToOrganizations = () => {
-        router.push("/organizations");
+        router.replace("/organizations");
     };
-
 
     return (
         <View style={styles.container}>

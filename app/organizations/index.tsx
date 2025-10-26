@@ -78,7 +78,7 @@ export default function Index() {
   if (!session) return null; // protege render mientras se redirige
 
   const goToReport = (slug: string) => {
-    router.push(`${slug}/reports/`);
+    router.replace(`${slug}/reports/`);
   };
 
   return (

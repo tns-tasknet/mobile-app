@@ -81,7 +81,7 @@ export default function OrganizationReport() {
   if (!session) return null; 
 
   const goToReportDetails = (reportId: any) => {
-    router.push(`${organizationSlug}/reports/${reportId}`);
+    router.replace(`${organizationSlug}/reports/${reportId}`);
   };
 
   return (
