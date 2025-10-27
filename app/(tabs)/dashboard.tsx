@@ -16,16 +16,16 @@ export default function Dashboard() {
         await authClient.signOut()
     };
 
-    const goToOrganizations = () => {
-        router.push("/organizations");
+    const goToProfile = () => {
+        router.push("/profile");
     };
 
     return (
         <View style={styles.container}>
             <Text style={styles.saludo}>Hola! {session?.user.name}.</Text>
             <View style={styles.buttons}>
-                <Pressable onPress={goToOrganizations} style={styles.button}>
-                    <Text style={styles.buttonText}>Organizaciones</Text>
+                <Pressable onPress={goToProfile} style={styles.button}>
+                    <Text style={styles.buttonText}>Perfil</Text>
                 </Pressable>
                 <Pressable onPress={handleLogout} style={styles.button}>
                     <Text style={styles.buttonText}>Cerrar Sesion</Text>
