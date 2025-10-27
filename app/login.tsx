@@ -1,6 +1,6 @@
 import { authClient } from "@/lib/auth-client";
 import { router, useNavigationContainerRef } from "expo-router";
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function Login() {
@@ -20,7 +20,7 @@ export default function Login() {
 	useEffect(() => {
 		if (isAuthenticated) {
 			if (navContainerRef.isReady()) {
-				router.push("/dashboard");
+				router.replace("/dashboard");
 			}
 		}
 	}, [isAuthenticated, navContainerRef.isReady()]);
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 		justifyContent: 'center',
 		alignItems: 'center',
-		backgroundColor: '#0E3598',
+		backgroundColor: '#273F7D',
 		padding: 24,
 	},
 	title: {
