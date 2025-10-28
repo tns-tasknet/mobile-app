@@ -20,7 +20,7 @@ export default function Login() {
 	useEffect(() => {
 		if (isAuthenticated) {
 			if (navContainerRef.isReady()) {
-				router.replace("/dashboard");
+				router.replace("/home");
 			}
 		}
 	}, [isAuthenticated, navContainerRef.isReady()]);
