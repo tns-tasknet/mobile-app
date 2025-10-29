@@ -1,13 +1,12 @@
 import { authClient } from "@/lib/auth-client";
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
 import { Button, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
+const organizationSlug = process.env.EXPO_PUBLIC_ORG;
 
 export default function Home() {
     const { data: session, isPending } = authClient.useSession();
-    const [organizationSlug, setOrganizationSlug] = useState<string | null>(null);
     const [reports, setReports] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -17,16 +16,6 @@ export default function Home() {
         }
     }, [session, isPending]);
 
-    useEffect(() => {
-        (async () => {
-            const savedSlug = await SecureStore.getItemAsync("organizationSlug");
-            if (!savedSlug) {
-                router.replace("/setup");
-                return;
-            }
-            setOrganizationSlug(savedSlug);
-        })();
-    }, []);
 
     useEffect(() => {
         if (!organizationSlug) return;
@@ -57,6 +46,10 @@ export default function Home() {
 
     const goToProfile = () => {
         router.push("/profile");
+    };
+
+    const goToReportDetails = (orderId : any) => {
+        router.push(`/orders/${orderId}`);
     };
 
     return (

@@ -6,23 +6,25 @@ import { Picker } from "@react-native-picker/picker";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  Button,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    Alert,
+    Button,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
+const organizationSlug = process.env.EXPO_PUBLIC_ORG;
+
 
 export default function OrganizationReport() {
-  const { reportId, organizationSlug } = useLocalSearchParams();
+  const { orderId } = useLocalSearchParams();
   const { data: session, isPending } = authClient.useSession();
   const isOnline = useNetwork();
   const waitForConnection = useWaitForConnection();
@@ -37,9 +39,9 @@ export default function OrganizationReport() {
   const fetchReportDetails = async () => {
     try {
       setLoading(true);
-
+        console.log(orderId);
       const res = await authClient.$fetch<any>(
-        `${baseURL}/api/v1/${organizationSlug}/reports/${reportId}`,
+        `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
         { method: "GET" }
       );
 
@@ -86,7 +88,7 @@ export default function OrganizationReport() {
     if (report) return;
 
     fetchReportDetails();
-  }, [isPending, session, reportId, organizationSlug]);
+  }, [isPending, session, orderId, organizationSlug]);
 
 
 
@@ -98,7 +100,7 @@ export default function OrganizationReport() {
       setLoading(true);
 
       const res = await authClient.$fetch<any>(
-        `${baseURL}/api/v1/${organizationSlug}/reports/${reportId}`,
+        `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
         {
           method: "PATCH",
           headers: {
