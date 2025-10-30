@@ -1,70 +1,64 @@
 import { authClient } from "@/lib/auth-client";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Button, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
 const organizationSlug = process.env.EXPO_PUBLIC_ORG;
 
 export default function Home() {
-    const { data: session, isPending } = authClient.useSession();
-    const [reports, setReports] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+  const { data: session, isPending } = authClient.useSession();
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (!session && !isPending) {
-            router.replace("/login");
-        }
-    }, [session, isPending]);
+  useEffect(() => {
+    if (!session && !isPending) {
+      router.replace("/login");
+    }
+  }, [session, isPending]);
 
+  useEffect(() => {
+    if (!organizationSlug) return;
 
-    useEffect(() => {
-        if (!organizationSlug) return;
+    (async () => {
+      try {
+        setLoading(true);
 
-        (async () => {
-            try {
-                setLoading(true);
+        const res = await authClient.$fetch<any[]>(
+          `${baseURL}/api/v1/${organizationSlug}/reports`,
+          { method: "GET" }
+        );
 
-                const res = await authClient.$fetch<any[]>(
-                    `${baseURL}/api/v1/${organizationSlug}/reports`,
-                    { method: "GET" }
-                );
+        console.log("Reportes:", res.data || []);
+        setReports(res.data || []);
+      } catch (err) {
+        console.error("Error cargando reportes:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [organizationSlug]);
 
-                console.log("Reportes:", res.data || []);
-                setReports(res.data || []);
-            } catch (err) {
-                console.error("Error cargando reportes:", err);
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, [organizationSlug]);
+  const handleLogout = async () => {
+    await authClient.signOut();
+  };
 
+  const goToProfile = () => {
+    router.push("/profile");
+  };
 
-    const handleLogout = async () => {
-        await authClient.signOut()
-    };
+  const goToReportDetails = (orderId: any) => {
+    router.push(`/orders/${orderId}`);
+  };
 
-    const goToProfile = () => {
-        router.push("/profile");
-    };
-
-    const goToReportDetails = (orderId : any) => {
-        router.push(`/orders/${orderId}`);
-    };
-
-    return (
+  return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* 🔹 Encabezado con botones */}
-        <Text style={styles.saludo}>Hola, {session?.user?.name ?? "Usuario"} 👋</Text>
-        <View style={styles.buttons}>
-          <Pressable onPress={goToProfile} style={styles.button}>
-            <Text style={styles.buttonText}>Perfil</Text>
-          </Pressable>
-          <Pressable onPress={handleLogout} style={styles.button}>
-            <Text style={styles.buttonText}>Cerrar Sesión</Text>
-          </Pressable>
-        </View>
+        <Text style={styles.saludo}>
+          Hola, {session?.user?.name ?? "Usuario"} 👋
+        </Text>
 
         {/* 🔹 Lista de reportes */}
         <Text style={styles.sectionTitle}>Reportes disponibles:</Text>
@@ -93,7 +87,16 @@ export default function Home() {
                     </Text>
                     <Text>ID: {id}</Text>
                     <Text>Creado: {createdAt}</Text>
-                    <Button title="Ver detalles" onPress={() => goToReportDetails(id)} />
+
+                    <Pressable
+                      onPress={() => goToReportDetails(id)}
+                      style={({ pressed }) => [
+                        styles.detailButton,
+                        pressed && { opacity: 0.8 },
+                      ]}
+                    >
+                      <Text style={styles.detailButtonText}>VER DETALLES</Text>
+                    </Pressable>
                   </View>
                 );
               })
@@ -106,6 +109,7 @@ export default function Home() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -166,5 +170,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
     color: "#555",
+  },
+  detailButton: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    width: "100%",
+  },
+  detailButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
