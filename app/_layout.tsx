@@ -22,7 +22,6 @@ export default function RootLayout() {
         screenOptions={{ headerShown: false }}
       >
         {/* Pantalla inicial */}
-        <Stack.Screen name="setup" />
         <Stack.Screen name="login" />
       </Stack>
     </GestureHandlerRootView>

@@ -39,11 +39,6 @@ export default function Home() {
         })();
     }, [organizationSlug]);
 
-
-    const handleLogout = async () => {
-        await authClient.signOut()
-    };
-
     const goToProfile = () => {
         router.push("/profile");
     };
@@ -60,9 +55,6 @@ export default function Home() {
         <View style={styles.buttons}>
           <Pressable onPress={goToProfile} style={styles.button}>
             <Text style={styles.buttonText}>Perfil</Text>
-          </Pressable>
-          <Pressable onPress={handleLogout} style={styles.button}>
-            <Text style={styles.buttonText}>Cerrar Sesión</Text>
           </Pressable>
         </View>
 
