@@ -4,12 +4,14 @@ import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
 import { Picker } from "@react-native-picker/picker";
 import * as Device from "expo-device";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
+  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -36,46 +38,41 @@ export default function OrderDetails() {
   const [status, setStatus] = useState<
     "PENDING" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED"
   >("PENDING");
-  const [observaciones, setObservaciones] = useState("");
   const [firma, setFirma] = useState<string | null>(null);
   const signatureRef = useRef<SignatureViewRef>(null);
   const [metadata, setMetadata] = useState<any>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login");
   }, [session, isPending]);
 
   useEffect(() => {
-  const fetchMetadata = async () => {
-    try {
-      // 1️⃣ Solicitar permisos de ubicación
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        console.warn("Permiso de ubicación denegado");
-        return;
+    const fetchMetadata = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          console.warn("Permiso de ubicación denegado");
+          return;
+        }
+
+        const { coords } = await Location.getCurrentPositionAsync({});
+        setMetadata({
+          name: session?.user?.name,
+          timestamp: new Date().toISOString(),
+          gps: {
+            lat: coords.latitude,
+            lon: coords.longitude,
+          },
+          deviceId: Device.modelName,
+        });
+      } catch (err) {
+        console.warn("No se pudo obtener metadata:", err);
       }
+    };
 
-      // 2️⃣ Obtener coordenadas
-      const { coords } = await Location.getCurrentPositionAsync({});
-
-      // 3️⃣ Construir metadata
-      setMetadata({
-        name: session?.user?.name,
-        timestamp: new Date().toISOString(),
-        gps: {
-          lat: coords.latitude,
-          lon: coords.longitude,
-        },
-        deviceId: Device.modelName,
-      });
-    } catch (err) {
-      console.warn("No se pudo obtener metadata:", err);
-    }
-  };
-
-  fetchMetadata();
-}, [session]);
-
+    fetchMetadata();
+  }, [session]);
 
   const fetchOrderDetails = useCallback(async () => {
     try {
@@ -119,6 +116,26 @@ export default function OrderDetails() {
     setFirma(sig);
   };
 
+  // --- Tomar foto directamente ---
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permiso denegado", "Se necesita acceso a la cámara para tomar fotos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      // ✅ Guardamos la foto en base64 para enviarla al backend
+      setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
+
   // --- Actualizar orden ---
   const updateOrder = async () => {
     if (!session) return;
@@ -140,13 +157,10 @@ export default function OrderDetails() {
               const bodyData: any = {
                 response: responseText,
                 status,
-                metadata, // ✅ añadimos aquí los metadatos
+                metadata,
+                firma,
+                photo, // ✅ Enviado como base64
               };
-
-              if (status === "COMPLETED") {
-                bodyData.observaciones = observaciones;
-                bodyData.firma = firma;
-              }
 
               const res = await authClient.$fetch<any>(
                 `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
@@ -161,6 +175,7 @@ export default function OrderDetails() {
                 onConflictReload: fetchOrderDetails,
                 isOnline,
               });
+              console.log("bodyData = ", bodyData);
               if (!hasError) setOrder(res.data || null);
             } catch (err: any) {
               Alert.alert("Error", err?.message || "Error desconocido");
@@ -218,18 +233,8 @@ export default function OrderDetails() {
                     ))}
                   </Picker>
 
-                  {/* === CAMPOS EXTRA SOLO SI SE COMPLETA === */}
                   {status === "COMPLETED" && (
                     <>
-                      <Text style={styles.sectionTitle}>Observaciones finales:</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Agrega observaciones finales..."
-                        value={observaciones}
-                        onChangeText={setObservaciones}
-                        multiline
-                      />
-
                       <Text style={styles.sectionTitle}>Firma digital:</Text>
                       <View style={styles.signatureBox}>
                         <SignatureCanvas
@@ -241,6 +246,15 @@ export default function OrderDetails() {
                           webStyle={signatureWebStyle}
                         />
                       </View>
+
+                      <Text style={styles.sectionTitle}>Tomar foto:</Text>
+                      <Button title="Tomar Foto" onPress={takePhoto} />
+                      {photo && (
+                        <Image
+                          source={{ uri: photo }}
+                          style={styles.previewImage}
+                        />
+                      )}
                     </>
                   )}
 
@@ -316,5 +330,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     marginVertical: 8,
+  },
+  previewImage: {
+    width: "100%",
+    height: 200,
+    marginTop: 10,
+    borderRadius: 8,
   },
 });
