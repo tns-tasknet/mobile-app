@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "909410652793",
+    "project_id": "tsn-tasknet-v0",
+    "storage_bucket": "tsn-tasknet-v0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909410652793:android:f08156920e9527ff97faa8",
+        "android_client_info": {
+          "package_name": "com.jorge.fariasso.mobileapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6q1u9R1WuFQ8bS22fW3jjmsDVNiAGAH0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909410652793:android:61e7f887ebd7f3ed97faa8",
+        "android_client_info": {
+          "package_name": "tsn.tasknet.v0"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6q1u9R1WuFQ8bS22fW3jjmsDVNiAGAH0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
