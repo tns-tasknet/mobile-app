@@ -2,6 +2,7 @@ import { useNetwork } from "@/hooks/useNetwork";
 import { useWaitForConnection } from "@/hooks/useWaitForConnection";
 import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
+import { savePendingOrder, syncPendingOrders } from "@/lib/offline-orders";
 import { Picker } from "@react-native-picker/picker";
 import * as Device from "expo-device";
 import * as ImagePicker from "expo-image-picker";
@@ -42,6 +43,7 @@ export default function OrderDetails() {
   const signatureRef = useRef<SignatureViewRef>(null);
   const [metadata, setMetadata] = useState<any>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [orderPending, setOrderPending] = useState(false);
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login");
@@ -77,6 +79,13 @@ export default function OrderDetails() {
   const fetchOrderDetails = useCallback(async () => {
     try {
       setLoading(true);
+      console.error(isOnline);
+      console.error('Inicia la fx', ':v');
+      if (!isOnline) {
+        Alert.alert("Sin conexión", "Se reintentará al reconectarse.");
+        return;
+      }
+
       const res = await authClient.$fetch<any>(
         `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
         { method: "GET" }
@@ -94,12 +103,8 @@ export default function OrderDetails() {
       setOrder(fetched);
       setResponseText(fetched.response || "");
       setStatus(fetched.status || "PENDING");
+      console.log('OrderDetails: ',  res.data)
     } catch (err: any) {
-      if (!isOnline) {
-        Alert.alert("Sin conexión", "Se reintentará al reconectarse.");
-        waitForConnection(fetchOrderDetails);
-        return;
-      }
       Alert.alert("Error", err?.message || "Error desconocido");
       console.error(err);
     } finally {
@@ -108,8 +113,11 @@ export default function OrderDetails() {
   }, [isOnline, orderId, waitForConnection]);
 
   useEffect(() => {
-    if (!isPending && session && !order && orderId) fetchOrderDetails();
-  }, [isPending, session, orderId, order, fetchOrderDetails]);
+  if (!isPending && session && !order && orderId && isOnline !== null) {
+    fetchOrderDetails();
+  }
+}, [isPending, session, orderId, order, fetchOrderDetails, isOnline]);
+
 
   // --- Guardar firma ---
   const handleSignature = (sig: string) => {
@@ -136,6 +144,18 @@ export default function OrderDetails() {
     }
   };
 
+  // --- Cuando vuelve el internet, intenta sincronizar las órdenes pendientes ---
+  useEffect(() => {
+    if (isOnline && orderPending) {
+      console.log('Entra minimo?? xd')
+      syncPendingOrders(baseURL, organizationSlug, authClient, isOnline);
+      setOrderPending (false);
+      fetchOrderDetails();
+    }
+  }, [isOnline, orderPending]);
+
+
+
   // --- Actualizar orden ---
   const updateOrder = async () => {
     if (!session) return;
@@ -159,9 +179,20 @@ export default function OrderDetails() {
                 status,
                 metadata,
                 firma,
-                photo, // ✅ Enviado como base64
+                photo,
               };
 
+              console.log("bodyData = ", bodyData);
+
+              if (!isOnline) {
+                // 🟡 Sin conexión → guardar localmente
+                setOrderPending (true);
+                await savePendingOrder(orderId, bodyData);
+                Alert.alert("Sin conexión", "Cambios guardados localmente. Se sincronizarán al reconectarse.");
+                return;
+              }
+
+              // 🟢 Con conexión → intentar enviar normalmente
               const res = await authClient.$fetch<any>(
                 `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
                 {
@@ -175,8 +206,10 @@ export default function OrderDetails() {
                 onConflictReload: fetchOrderDetails,
                 isOnline,
               });
-              console.log("bodyData = ", bodyData);
-              if (!hasError) setOrder(res.data || null);
+
+              if (!hasError) {
+                setOrder(res.data || null);
+              }
             } catch (err: any) {
               Alert.alert("Error", err?.message || "Error desconocido");
               console.error(err);
@@ -188,6 +221,7 @@ export default function OrderDetails() {
       ]
     );
   };
+
 
   if (loading)
     return (
