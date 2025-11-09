@@ -44,3 +44,7 @@ app-example
 
 # .env
 .env
+
+# FMC
+google-services.json
+tsn-tasknet-v0-firebase-adminsdk-fbsvc-af8cd897be.json
