@@ -79,8 +79,6 @@ export default function OrderDetails() {
   const fetchOrderDetails = useCallback(async () => {
     try {
       setLoading(true);
-      console.error(isOnline);
-      console.error('Inicia la fx', ':v');
       if (!isOnline) {
         Alert.alert("Sin conexión", "Se reintentará al reconectarse.");
         return;
