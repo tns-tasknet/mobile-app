@@ -190,7 +190,7 @@ export default function OrderDetails() {
     handleReconnect();
   }, [isOnline, orderPending]);
 
-   // --- Actualizar orden ---
+  // --- Actualizar orden ---
   const updateOrder = async () => {
     if (!session) return;
     Alert.alert(
@@ -280,95 +280,115 @@ export default function OrderDetails() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          scrollEnabled={!isSigning}
-        >
-          {order ? (
-            <View style={styles.card}>
-              <Text style={styles.title}>{order.title}</Text>
-              <Text>ID: {order.id}</Text>
-              <Text>Contenido: {order.content}</Text>
-              <Text>Slug: {order.slugText}</Text>
-              <Text>Logo: {order.logo}</Text>
-              <Text>Metadata: {order.metadata}</Text>
-              <Text>Response: {order.response}</Text>
-              <Text>State: {order.status}</Text>
+  contentContainerStyle={styles.scrollContainer}
+  keyboardShouldPersistTaps="handled"
+  scrollEnabled={!isSigning}
+>
+  {order ? (
+    <View style={styles.card}>
+      <Text style={styles.title}>{order.title}</Text>
+      <View style={styles.row}>
+        <Text style={styles.label}>ID:</Text>
+        <Text style={styles.value}>{order.id}</Text>
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Contenido:</Text>
+        <Text style={styles.value}>{order.content}</Text>
+      </View>
 
-              {order.status !== "COMPLETED" ? (
-                <>
-                  <Text style={styles.sectionTitle}>Editar respuesta:</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Escribe una respuesta..."
-                    value={responseText}
-                    onChangeText={setResponseText}
-                    multiline
+      <View style={styles.row}>
+        <Text style={styles.label}>Estado actual:</Text>
+        <Text style={[styles.value, { fontWeight: "bold" }]}>{order.status}</Text>
+      </View>
+
+      {order.status !== "COMPLETED" && (
+        <>
+          <Text style={styles.sectionTitle}>Editar respuesta:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Escribe una respuesta..."
+            value={responseText}
+            onChangeText={setResponseText}
+            multiline
+          />
+          <Text style={styles.sectionTitle}>Cambiar estado:</Text>
+          <Picker
+            selectedValue={status}
+            onValueChange={handleStatusChange}
+            style={styles.picker}
+          >
+            {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
+              <Picker.Item key={st} label={st} value={st} />
+            ))}
+          </Picker>
+
+          {/* 🔹 Historial embellecido */}
+          {orderHistory.length > 0 && (
+            <View style={styles.timelineContainer}>
+              <Text style={styles.sectionTitle}>Historial de estados:</Text>
+              {orderHistory.map((entry, i) => (
+                <View key={i} style={styles.timelineItem}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      entry.status === "COMPLETED"
+                        ? { backgroundColor: "#28A745" }
+                        : entry.status === "IN_PROGRESS"
+                        ? { backgroundColor: "#FFC107" }
+                        : entry.status === "SCHEDULED"
+                        ? { backgroundColor: "#17A2B8" }
+                        : { backgroundColor: "#6C757D" },
+                    ]}
                   />
-                  <Text style={styles.sectionTitle}>Cambiar estado:</Text>
-                  <Picker
-                    selectedValue={status}
-                    onValueChange={handleStatusChange}
-                    style={styles.picker}
-                  >
-                    {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
-                      <Picker.Item key={st} label={st} value={st} />
-                    ))}
-                  </Picker>
-
-                   {/* 🔹 Historial de cambios */}
-              {orderHistory.length > 0 && (
-                <View style={{ marginTop: 16 }}>
-                  <Text style={styles.sectionTitle}>Historial de estados:</Text>
-                  {orderHistory.map((entry, i) => (
-                    <Text key={i}>
-                      • {entry.status} — {new Date(entry.timestamp).toLocaleString()} ({entry.user})
+                  <View style={styles.timelineContent}>
+                    <Text style={styles.timelineStatus}>{entry.status}</Text>
+                    <Text style={styles.timelineTimestamp}>
+                      {new Date(entry.timestamp).toLocaleString()}
                     </Text>
-                  ))}
+                    <Text style={styles.timelineUser}>por {entry.user}</Text>
+                  </View>
                 </View>
-              )}
-
-                  {status === "COMPLETED" && (
-                    <>
-                      <Text style={styles.sectionTitle}>Firma digital:</Text>
-                      <View style={styles.signatureBox}>
-                        <SignatureCanvas
-                          ref={signatureRef}
-                          onOK={handleSignature}
-                          onBegin={() => setIsSigning(true)}
-                          onEnd={() => setIsSigning(false)}
-                          descriptionText="Firma aquí"
-                          clearText="Borrar"
-                          confirmText="Guardar"
-                          webStyle={signatureWebStyle}
-                        />
-                      </View>
-                      <Button title="Reiniciar Firma" onPress={resetSignature} />
-                      <View style={styles.separatorSmall} />
-                      <Button title="Tomar Foto" onPress={takePhoto} />
-                      {photo && (
-                        <Image source={{ uri: photo }} style={styles.previewImage} />
-                      )}
-                    </>
-                  )}
-
-                  <View style={styles.separator} />
-                  <Button
-                    title="Actualizar Reporte"
-                    onPress={updateOrder}
-                    disabled={loading}
-                  />
-                </>
-              ) : (
-                <Text style={styles.sectionTitle}>
-                  ✅ Esta orden está completada y no puede modificarse.
-                </Text>
-              )}
+              ))}
             </View>
-          ) : (
-            <Text style={styles.infoText}>No hay detalles disponibles.</Text>
           )}
-        </ScrollView>
+
+          {status === "COMPLETED" && (
+            <>
+              <Text style={styles.sectionTitle}>Firma digital:</Text>
+              <View style={styles.signatureBox}>
+                <SignatureCanvas
+                  ref={signatureRef}
+                  onOK={handleSignature}
+                  onBegin={() => setIsSigning(true)}
+                  onEnd={() => setIsSigning(false)}
+                  descriptionText="Firma aquí"
+                  clearText="Borrar"
+                  confirmText="Guardar"
+                  webStyle={signatureWebStyle}
+                />
+              </View>
+              <Button title="Reiniciar Firma" onPress={resetSignature} color="#3862CC" />
+              <View style={styles.separatorSmall} />
+              <Button title="Tomar Foto" onPress={takePhoto} color="#3862CC" />
+              {photo && <Image source={{ uri: photo }} style={styles.previewImage} />}
+            </>
+          )}
+
+          <View style={styles.separator} />
+          <Button
+            title="Actualizar Reporte"
+            onPress={updateOrder}
+            disabled={loading}
+            color="#28A745"
+          />
+        </>
+      )}
+    </View>
+  ) : (
+    <Text style={styles.infoText}>No hay detalles disponibles.</Text>
+  )}
+</ScrollView>
+
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -381,7 +401,7 @@ const signatureWebStyle = `
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#273F7D",
+    backgroundColor: "#F1F3F8",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   scrollContainer: {
@@ -389,35 +409,56 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 16,
-    elevation: 3,
+    borderRadius: 12,
+    padding: 20,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
+    marginBottom: 12,
+    color: "#273F7D",
+  },
+  row: {
+    flexDirection: "row",
     marginBottom: 8,
+  },
+  label: {
+    fontWeight: "600",
+    color: "#555",
+    width: 100,
+  },
+  value: {
+    color: "#333",
+    flex: 1,
+    flexWrap: "wrap",
   },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
-    borderRadius: 4,
-    padding: 8,
+    borderRadius: 8,
+    padding: 10,
     marginVertical: 8,
-    backgroundColor: "#fff",
+    backgroundColor: "#f9f9f9",
   },
   picker: {
-    backgroundColor: "#fff",
-    borderRadius: 4,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
     marginVertical: 8,
   },
   sectionTitle: {
-    fontWeight: "bold",
+    fontWeight: "700",
     marginTop: 16,
+    fontSize: 16,
+    color: "#3862CC",
   },
   infoText: {
     textAlign: "center",
-    color: "#FAF9F6",
+    color: "#555",
   },
   centered: {
     flex: 1,
@@ -428,53 +469,58 @@ const styles = StyleSheet.create({
     height: 200,
     borderWidth: 1,
     borderColor: "#ccc",
+    borderRadius: 8,
     marginVertical: 8,
+    backgroundColor: "#f9f9f9",
+    elevation: 2,
   },
   previewImage: {
     width: "100%",
     height: 200,
     marginTop: 10,
-    borderRadius: 8,
+    borderRadius: 12,
   },
-  separator: {
-    height: 20,
-  },
-  separatorSmall: {
-    height: 10,
-  },
+  separator: { height: 20 },
+  separatorSmall: { height: 10 },
   timelineContainer: {
-    marginTop: 20,
-    borderLeftWidth: 2,
-    borderLeftColor: "#3862CC",
-    paddingLeft: 10,
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "#EFF3FA",
+    borderRadius: 10,
   },
   timelineItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#3862CC",
-    marginRight: 10,
-    marginTop: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 12,
+    marginTop: 4,
   },
   timelineContent: {
     flex: 1,
   },
   timelineStatus: {
     fontWeight: "700",
+    fontSize: 14,
     color: "#273F7D",
   },
   timelineTimestamp: {
     fontSize: 12,
-    color: "#777",
+    color: "#555",
+    marginTop: 2,
   },
   timelineUser: {
     fontSize: 12,
-    color: "#999",
+    color: "#777",
     fontStyle: "italic",
+    marginTop: 1,
   },
+
+
+
+  
 });

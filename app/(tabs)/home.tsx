@@ -59,7 +59,6 @@ export default function Home() {
     router.push(`/orders/${orderId}`);
   };
 
-  // --- Agrupar órdenes por estado ---
   const groupOrdersByStatus = (orders: any[]) => {
     const groups: Record<string, any[]> = {};
     orders.forEach((order) => {
@@ -72,7 +71,6 @@ export default function Home() {
 
   const groupedOrders = groupOrdersByStatus(orders);
 
-  // --- Mapeo de etiquetas legibles ---
   const statusLabels: Record<string, string> = {
     pending: "Pendientes",
     in_progress: "En proceso",
@@ -84,8 +82,7 @@ export default function Home() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* 🔹 Encabezado */}
-        <Text style={styles.saludo}>
+\        <Text style={styles.saludo}>
           Hola, {session?.user?.name ?? "Usuario"} 👋
         </Text>
 
