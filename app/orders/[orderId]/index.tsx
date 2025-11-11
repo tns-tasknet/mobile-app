@@ -3,6 +3,7 @@ import { useWaitForConnection } from "@/hooks/useWaitForConnection";
 import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
 import { savePendingOrder, syncPendingOrders } from "@/lib/offline-orders";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import * as Device from "expo-device";
 import * as ImagePicker from "expo-image-picker";
@@ -44,6 +45,33 @@ export default function OrderDetails() {
   const [metadata, setMetadata] = useState<any>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [orderPending, setOrderPending] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<
+    { status: string; timestamp: string; user?: string }[]
+  >([]);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
+
+  // 🔹 Cargar historial guardado al abrir la orden
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const saved = await AsyncStorage.getItem(`orderHistory_${orderId}`);
+        if (saved) setOrderHistory(JSON.parse(saved));
+      } catch (err) {
+        console.warn("Error al cargar historial:", err);
+      }
+    };
+    if (orderId) loadHistory();
+  }, [orderId]);
+
+  // 🔹 Guardar historial en memoria persistente
+  const saveHistory = async (history: any[]) => {
+    try {
+      await AsyncStorage.setItem(`orderHistory_${orderId}`, JSON.stringify(history));
+    } catch (err) {
+      console.warn("Error al guardar historial:", err);
+    }
+  };
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login");
@@ -101,7 +129,7 @@ export default function OrderDetails() {
       setOrder(res.data.report);
       setResponseText(fetched.response || "");
       setStatus(fetched.status || "PENDING");
-      console.log('OrderDetails: ', res.data.report)
+      console.log("OrderDetails: ", res.data.report);
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Error desconocido");
       console.error(err);
@@ -116,6 +144,10 @@ export default function OrderDetails() {
     }
   }, [isPending, session, orderId, order, fetchOrderDetails, isOnline]);
 
+  const resetSignature = () => {
+    signatureRef.current?.clearSignature();
+    setFirma(null);
+  };
 
   // --- Guardar firma ---
   const handleSignature = (sig: string) => {
@@ -158,20 +190,14 @@ export default function OrderDetails() {
     handleReconnect();
   }, [isOnline, orderPending]);
 
-
-
-
-  // --- Actualizar orden ---
+   // --- Actualizar orden ---
   const updateOrder = async () => {
     if (!session) return;
     Alert.alert(
       "Confirmar guardado",
       "¿Estás seguro de que deseas guardar esta orden?",
       [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
+        { text: "Cancelar", style: "cancel" },
         {
           text: "Guardar",
           style: "default",
@@ -187,17 +213,17 @@ export default function OrderDetails() {
                 photo,
               };
 
-              console.log("bodyData = ", bodyData);
-
               if (!isOnline) {
-                // 🟡 Sin conexión → guardar localmente
                 setOrderPending(true);
                 await savePendingOrder(orderId, bodyData);
-                Alert.alert("Sin conexión", "Cambios guardados localmente. Se sincronizarán al reconectarse.");
+                Alert.alert(
+                  "Sin conexión",
+                  "Cambios guardados localmente. Se sincronizarán al reconectarse."
+                );
                 return;
               }
 
-              // 🟢 Con conexión → intentar enviar normalmente
+              // Enviar PATCH
               const res = await authClient.$fetch<any>(
                 `${baseURL}/api/v1/${organizationSlug}/orders/${orderId}`,
                 {
@@ -214,6 +240,17 @@ export default function OrderDetails() {
 
               if (!hasError) {
                 setOrder(res.data.report || null);
+
+                // ✅ Guardar en historial solo al confirmar
+                const newEntry = {
+                  status,
+                  timestamp: new Date().toISOString(),
+                  user: session?.user?.name || "Usuario",
+                };
+
+                const updatedHistory = [...orderHistory, newEntry];
+                setOrderHistory(updatedHistory);
+                await saveHistory(updatedHistory);
               }
             } catch (err: any) {
               Alert.alert("Error", err?.message || "Error desconocido");
@@ -227,6 +264,10 @@ export default function OrderDetails() {
     );
   };
 
+  // ✅ Solo cambia el estado visualmente, no el historial
+  const handleStatusChange = (newStatus: any) => {
+    setStatus(newStatus);
+  };
 
   if (loading)
     return (
@@ -236,83 +277,103 @@ export default function OrderDetails() {
     );
 
   return (
-  <SafeAreaProvider>
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {order ? (
-          <View style={styles.card}>
-            <Text style={styles.title}>{order.title}</Text>
-            <Text>ID: {order.id}</Text>
-            <Text>Contenido: {order.content}</Text>
-            <Text>Slug: {order.slugText}</Text>
-            <Text>Logo: {order.logo}</Text>
-            <Text>Metadata: {order.metadata}</Text>
-            <Text>Response: {order.response}</Text>
-            <Text>State: {order.status}</Text>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={!isSigning}
+        >
+          {order ? (
+            <View style={styles.card}>
+              <Text style={styles.title}>{order.title}</Text>
+              <Text>ID: {order.id}</Text>
+              <Text>Contenido: {order.content}</Text>
+              <Text>Slug: {order.slugText}</Text>
+              <Text>Logo: {order.logo}</Text>
+              <Text>Metadata: {order.metadata}</Text>
+              <Text>Response: {order.response}</Text>
+              <Text>State: {order.status}</Text>
 
-            {order.status !== "COMPLETED" ? (
-              <>
-                <Text style={styles.sectionTitle}>Editar respuesta:</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Escribe una respuesta..."
-                  value={responseText}
-                  onChangeText={setResponseText}
-                  multiline
-                />
+              {order.status !== "COMPLETED" ? (
+                <>
+                  <Text style={styles.sectionTitle}>Editar respuesta:</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Escribe una respuesta..."
+                    value={responseText}
+                    onChangeText={setResponseText}
+                    multiline
+                  />
+                  <Text style={styles.sectionTitle}>Cambiar estado:</Text>
+                  <Picker
+                    selectedValue={status}
+                    onValueChange={handleStatusChange}
+                    style={styles.picker}
+                  >
+                    {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
+                      <Picker.Item key={st} label={st} value={st} />
+                    ))}
+                  </Picker>
 
-                <Text style={styles.sectionTitle}>Cambiar estado:</Text>
-                <Picker
-                  selectedValue={status}
-                  onValueChange={setStatus}
-                  style={styles.picker}
-                >
-                  {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
-                    <Picker.Item key={st} label={st} value={st} />
+                   {/* 🔹 Historial de cambios */}
+              {orderHistory.length > 0 && (
+                <View style={{ marginTop: 16 }}>
+                  <Text style={styles.sectionTitle}>Historial de estados:</Text>
+                  {orderHistory.map((entry, i) => (
+                    <Text key={i}>
+                      • {entry.status} — {new Date(entry.timestamp).toLocaleString()} ({entry.user})
+                    </Text>
                   ))}
-                </Picker>
+                </View>
+              )}
 
-                {status === "COMPLETED" && (
-                  <>
-                    <Text style={styles.sectionTitle}>Firma digital:</Text>
-                    <View style={styles.signatureBox}>
-                      <SignatureCanvas
-                        ref={signatureRef}
-                        onOK={handleSignature}
-                        descriptionText="Firma aquí"
-                        clearText="Borrar"
-                        confirmText="Guardar"
-                        webStyle={signatureWebStyle}
-                      />
-                    </View>
+                  {status === "COMPLETED" && (
+                    <>
+                      <Text style={styles.sectionTitle}>Firma digital:</Text>
+                      <View style={styles.signatureBox}>
+                        <SignatureCanvas
+                          ref={signatureRef}
+                          onOK={handleSignature}
+                          onBegin={() => setIsSigning(true)}
+                          onEnd={() => setIsSigning(false)}
+                          descriptionText="Firma aquí"
+                          clearText="Borrar"
+                          confirmText="Guardar"
+                          webStyle={signatureWebStyle}
+                        />
+                      </View>
+                      <Button title="Reiniciar Firma" onPress={resetSignature} />
+                      <View style={styles.separatorSmall} />
+                      <Button title="Tomar Foto" onPress={takePhoto} />
+                      {photo && (
+                        <Image source={{ uri: photo }} style={styles.previewImage} />
+                      )}
+                    </>
+                  )}
 
-                    <Text style={styles.sectionTitle}>Tomar foto:</Text>
-                    <Button title="Tomar Foto" onPress={takePhoto} />
-                    {photo && (
-                      <Image
-                        source={{ uri: photo }}
-                        style={styles.previewImage}
-                      />
-                    )}
-                  </>
-                )}
-
-                <Button title="Actualizar Reporte" onPress={updateOrder} disabled={loading} />
-              </>
-            ) : (
-              <Text style={styles.sectionTitle}>
-                ✅ Esta orden está completada y no puede modificarse.
-              </Text>
-            )}
-          </View>
-        ) : (
-          <Text style={styles.infoText}>No hay detalles disponibles.</Text>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  </SafeAreaProvider>
+                  <View style={styles.separator} />
+                  <Button
+                    title="Actualizar Reporte"
+                    onPress={updateOrder}
+                    disabled={loading}
+                  />
+                </>
+              ) : (
+                <Text style={styles.sectionTitle}>
+                  ✅ Esta orden está completada y no puede modificarse.
+                </Text>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.infoText}>No hay detalles disponibles.</Text>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
+
 const signatureWebStyle = `
   .m-signature-pad--footer { display: none; margin: 0px; }
 `;
@@ -336,8 +397,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 8,
-    color: "#273F7D",
-    textAlign: "center",
   },
   input: {
     borderWidth: 1,
@@ -355,24 +414,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: "bold",
     marginTop: 16,
-    color: "#273F7D",
   },
   infoText: {
     textAlign: "center",
     color: "#FAF9F6",
-    marginTop: 20,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#273F7D",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#273F7D",
   },
   signatureBox: {
     height: 200,
@@ -385,5 +435,46 @@ const styles = StyleSheet.create({
     height: 200,
     marginTop: 10,
     borderRadius: 8,
+  },
+  separator: {
+    height: 20,
+  },
+  separatorSmall: {
+    height: 10,
+  },
+  timelineContainer: {
+    marginTop: 20,
+    borderLeftWidth: 2,
+    borderLeftColor: "#3862CC",
+    paddingLeft: 10,
+  },
+  timelineItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#3862CC",
+    marginRight: 10,
+    marginTop: 5,
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineStatus: {
+    fontWeight: "700",
+    color: "#273F7D",
+  },
+  timelineTimestamp: {
+    fontSize: 12,
+    color: "#777",
+  },
+  timelineUser: {
+    fontSize: 12,
+    color: "#999",
+    fontStyle: "italic",
   },
 });
