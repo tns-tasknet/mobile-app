@@ -9,7 +9,7 @@ const organizationSlug = process.env.EXPO_PUBLIC_ORG;
 
 export default function Home() {
   const { data: session, isPending } = authClient.useSession();
-  const [reports, setReports] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,13 +25,14 @@ export default function Home() {
       try {
         setLoading(true);
 
-        const res = await authClient.$fetch<any[]>(
-          `${baseURL}/api/v1/${organizationSlug}/reports`,
+        const res = await authClient.$fetch<any>(
+          `${baseURL}/api/v1/${organizationSlug}/orders`,
           { method: "GET" }
         );
 
-        console.log("Reportes:", res.data || []);
-        setReports(res.data || []);
+        console.log("Orders:", res?.data?.reports || []);
+        
+        setOrders(res?.data?.reports || []);
       } catch (err) {
         console.error("Error cargando reportes:", err);
       } finally {
@@ -67,8 +68,8 @@ export default function Home() {
           <Text style={styles.infoText}>Cargando reportes...</Text>
         ) : (
           <ScrollView style={styles.scroll}>
-            {reports.length > 0 ? (
-              reports.map((report) => {
+            {orders.length > 0 ? (
+              orders.map((report) => {
                 const name = report.name ?? "Sin nombre";
                 const id = report.id ?? "Sin ID";
                 const createdAt = report.createdAt
