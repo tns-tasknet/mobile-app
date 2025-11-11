@@ -12,7 +12,7 @@ import {
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState([
-    { id: 1, text: "¡Hola! 👋 ¿En qué puedo ayudarte hoy?", sender: "bot" },
+    { id: 1, text: "Necesito que termines este trabajo mediante ######## el dia ########", sender: "bot" },
   ]);
   const [inputText, setInputText] = useState("");
   const scrollViewRef = useRef<ScrollView | null>(null);

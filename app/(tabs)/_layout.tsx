@@ -12,6 +12,13 @@ export default function Layout() {
         tabBarIcon: ({size}) => <Ionicons name ='home' size={size}/>
         }} 
         />
+
+        <Tabs.Screen name="reports" options={{ 
+        title: 'Reports',
+        headerShown: false,
+        tabBarIcon: ({size}) => <Ionicons name ='clipboard-outline' size={size}/>
+        }} 
+        />
       
       <Tabs.Screen name="profile" options={{ 
         title: 'Perfil',
