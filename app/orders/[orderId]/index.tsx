@@ -79,7 +79,6 @@ export default function OrderDetails() {
   const fetchOrderDetails = useCallback(async () => {
     try {
       setLoading(true);
-      console.error(isOnline);
       if (!isOnline) {
         Alert.alert("Sin conexión", "Se reintentará al reconectarse.");
         return;
