@@ -80,14 +80,13 @@ export default function OrderDetails() {
     try {
       setLoading(true);
       console.error(isOnline);
-      console.error('Inicia la fx', ':v');
       if (!isOnline) {
         Alert.alert("Sin conexión", "Se reintentará al reconectarse.");
         return;
       }
 
       const res = await authClient.$fetch<any>(
-        `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
+        `${baseURL}/api/v1/${organizationSlug}/orders/${orderId}`,
         { method: "GET" }
       );
 
@@ -100,10 +99,10 @@ export default function OrderDetails() {
       const fetched = Array.isArray(res.data) ? res.data[0] : res.data || null;
       if (!fetched) return;
 
-      setOrder(fetched);
+      setOrder(res.data.report);
       setResponseText(fetched.response || "");
       setStatus(fetched.status || "PENDING");
-      console.log('OrderDetails: ',  res.data)
+      console.log('OrderDetails: ', res.data.report)
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Error desconocido");
       console.error(err);
@@ -113,10 +112,10 @@ export default function OrderDetails() {
   }, [isOnline, orderId, waitForConnection]);
 
   useEffect(() => {
-  if (!isPending && session && !order && orderId && isOnline !== null) {
-    fetchOrderDetails();
-  }
-}, [isPending, session, orderId, order, fetchOrderDetails, isOnline]);
+    if (!isPending && session && !order && orderId && isOnline !== null) {
+      fetchOrderDetails();
+    }
+  }, [isPending, session, orderId, order, fetchOrderDetails, isOnline]);
 
 
   // --- Guardar firma ---
@@ -139,20 +138,27 @@ export default function OrderDetails() {
     });
 
     if (!result.canceled) {
-      // ✅ Guardamos la foto en base64 para enviarla al backend
       setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
 
   // --- Cuando vuelve el internet, intenta sincronizar las órdenes pendientes ---
   useEffect(() => {
-    if (isOnline && orderPending) {
-      console.log('Entra minimo?? xd')
-      syncPendingOrders(baseURL, organizationSlug, authClient, isOnline);
-      setOrderPending (false);
-      fetchOrderDetails();
-    }
+    const handleReconnect = async () => {
+      if (isOnline && orderPending) {
+        try {
+          await syncPendingOrders(baseURL, organizationSlug, authClient, isOnline);
+          await fetchOrderDetails();
+          setOrderPending(false);
+        } catch (err) {
+          console.error("❌ Error al sincronizar órdenes:", err);
+        }
+      }
+    };
+
+    handleReconnect();
   }, [isOnline, orderPending]);
+
 
 
 
@@ -186,7 +192,7 @@ export default function OrderDetails() {
 
               if (!isOnline) {
                 // 🟡 Sin conexión → guardar localmente
-                setOrderPending (true);
+                setOrderPending(true);
                 await savePendingOrder(orderId, bodyData);
                 Alert.alert("Sin conexión", "Cambios guardados localmente. Se sincronizarán al reconectarse.");
                 return;
@@ -194,7 +200,7 @@ export default function OrderDetails() {
 
               // 🟢 Con conexión → intentar enviar normalmente
               const res = await authClient.$fetch<any>(
-                `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
+                `${baseURL}/api/v1/${organizationSlug}/orders/${orderId}`,
                 {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
@@ -208,7 +214,7 @@ export default function OrderDetails() {
               });
 
               if (!hasError) {
-                setOrder(res.data || null);
+                setOrder(res.data.report || null);
               }
             } catch (err: any) {
               Alert.alert("Error", err?.message || "Error desconocido");

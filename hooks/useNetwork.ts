@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 export const useNetwork = (stabilizationDelay = 500) => {
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastStableValue = useRef<boolean | null>(null);
 
   useEffect(() => {
@@ -28,6 +28,5 @@ export const useNetwork = (stabilizationDelay = 500) => {
     };
   }, [stabilizationDelay]);
 
-  // Retornar false mientras aún no hay valor real
-  return isOnline ?? false;
+  return isOnline ;
 };

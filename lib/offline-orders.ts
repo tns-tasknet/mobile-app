@@ -35,7 +35,7 @@ export const syncPendingOrders = async (
         for (const { orderId, data } of stored) {
             try {
                 const res = (await authClient.$fetch(
-                    `${baseURL}/api/v1/${organizationSlug}/reports/${orderId}`,
+                    `${baseURL}/api/v1/${organizationSlug}/orders/${orderId}`,
                     {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
@@ -43,12 +43,12 @@ export const syncPendingOrders = async (
                     }
                 )) as { data: any };
 
-                console.log(`✅ Orden ${orderId} sincronizada`);
+                console.error(`✅ Orden ${orderId} sincronizada`);
             } catch (err: any) {
-                console.log(`⚠️ No se pudo sincronizar ${orderId}:`, err.message);
+                console.error(`⚠️ No se pudo sincronizar ${orderId}:`, err.message);
                 remaining.push({ orderId, data });
             }
-            console.log('ORDEN: ', orderId,data, 'COMPLETED');
+            console.error('ORDEN: ', orderId,data, 'COMPLETED');
         }
 
         await AsyncStorage.setItem("pendingOrders", JSON.stringify(remaining));
