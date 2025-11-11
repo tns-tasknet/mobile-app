@@ -56,18 +56,19 @@ export default function Home() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* 🔹 Encabezado con botones */}
+        {/* 🔹 Encabezado */}
         <Text style={styles.saludo}>
           Hola, {session?.user?.name ?? "Usuario"} 👋
         </Text>
 
-        {/* 🔹 Lista de reportes */}
-        <Text style={styles.sectionTitle}>Reportes disponibles:</Text>
+        {/* 🔹 Subtítulo */}
+        <Text style={styles.sectionTitle}>Ordenes disponibles</Text>
 
+        {/* 🔹 Contenido */}
         {loading ? (
           <Text style={styles.infoText}>Cargando reportes...</Text>
         ) : (
-          <ScrollView style={styles.scroll}>
+          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             {orders.length > 0 ? (
               orders.map((report) => {
                 const name = report.name ?? "Sin nombre";
@@ -78,25 +79,28 @@ export default function Home() {
 
                 return (
                   <View key={id} style={styles.reportCard}>
-                    <Text
-                      style={[
-                        styles.reportTitle,
-                        name === "Sin nombre" && styles.missingName,
-                      ]}
-                    >
-                      {name}
-                    </Text>
-                    <Text>ID: {id}</Text>
-                    <Text>Creado: {createdAt}</Text>
+                    <View style={styles.cardHeader}>
+                      <Text
+                        style={[
+                          styles.reportTitle,
+                          name === "Sin nombre" && styles.missingName,
+                        ]}
+                      >
+                        {name}
+                      </Text>
+                      <Text style={styles.dateText}>{createdAt}</Text>
+                    </View>
+
+                    <Text style={styles.reportId}>ID: {id}</Text>
 
                     <Pressable
                       onPress={() => goToReportDetails(id)}
                       style={({ pressed }) => [
                         styles.detailButton,
-                        pressed && { opacity: 0.8 },
+                        pressed && { opacity: 0.85 },
                       ]}
                     >
-                      <Text style={styles.detailButtonText}>VER DETALLES</Text>
+                      <Text style={styles.detailButtonText}>Ver detalles</Text>
                     </Pressable>
                   </View>
                 );
@@ -114,74 +118,79 @@ export default function Home() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#F3F5FA",
   },
   container: {
     flex: 1,
     padding: 20,
   },
   saludo: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#273F7D",
     marginBottom: 10,
-  },
-  buttons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 15,
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginBottom: 10,
+    color: "#4A4A4A",
+    marginBottom: 20,
   },
   scroll: {
     flex: 1,
   },
   reportCard: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 14,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
   },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
   reportTitle: {
     fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 5,
+    fontWeight: "700",
+    color: "#273F7D",
   },
   missingName: {
-    color: "red",
+    color: "#E74C3C",
+  },
+  reportId: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 10,
+  },
+  dateText: {
+    fontSize: 13,
+    color: "#999",
+  },
+  detailButton: {
+    backgroundColor: "#3862CC",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  detailButtonText: {
+    color: "#FAF9F6",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
   infoText: {
     textAlign: "center",
-    marginTop: 20,
+    marginTop: 30,
+    fontSize: 15,
     color: "#555",
-  },
-  detailButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 10,
-    width: "100%",
-  },
-  detailButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    textAlign: "center",
   },
 });

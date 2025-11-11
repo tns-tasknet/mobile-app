@@ -5,7 +5,10 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
+  SafeAreaView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -45,41 +48,70 @@ export default function Profile() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Perfil de Usuario</Text>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Ajuste para barra de estado en Android */}
+      <View style={styles.statusPadding} />
 
-        <View style={styles.perfilInfo}>
-          {user.image && (
-            <Image
-              source={{ uri: user.image }}
-              style={styles.profileImage}
-            />
-          )}
-          <Text style={styles.profileName}>{user.name ?? "Sin nombre"}</Text>
-          <Text style={styles.profileEmail}>{user.email}</Text>
+      <View style={styles.container}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Perfil de Usuario</Text>
+
+          <View style={styles.perfilInfo}>
+            {user?.image ? (
+              <Image source={{ uri: user.image }} style={styles.profileImage} />
+            ) : (
+              <View style={styles.placeholderImage}>
+                <Text style={styles.placeholderText}>
+                  {user?.name ? user.name.charAt(0).toUpperCase() : "?"}
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.profileName}>{user?.name ?? "Sin nombre"}</Text>
+            <Text style={styles.profileEmail}>{user?.email ?? "Sin correo"}</Text>
+          </View>
         </View>
-      </View>
 
-      <Pressable
-        onPress={handleSignOut}
-        style={({ pressed }) => [
-          styles.detailButton,
-          pressed && { opacity: 0.8 },
-        ]}
-      >
-        <Text style={styles.buttonText}>Cerrar sesión</Text>
-      </Pressable>
-    </View>
+        <Pressable
+          onPress={handleSignOut}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  // 🔹 Safe area para notch o cámara
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F3F5FA",
+  },
+
+  // 🔹 Ajuste para Android
+  statusPadding: {
+    height: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
+
+  // 🔹 Pantalla de carga
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F3F5FA",
   },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 15,
+    color: "#555",
+  },
+
+  // 🔹 Contenedor general
   container: {
     flex: 1,
     padding: 20,
@@ -87,42 +119,81 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    alignItems: "center",
   },
+
+  // 🔹 Título
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 20,
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#273F7D",
     textAlign: "center",
+    marginBottom: 30,
+    marginTop: 20,
   },
+
+  // 🔹 Info de perfil
   perfilInfo: {
     alignItems: "center",
-    marginBottom: 20,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+    width: "100%",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    marginBottom: 14,
+    borderWidth: 3,
+    borderColor: "#3862CC",
+  },
+  placeholderImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#DDE3F7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  placeholderText: {
+    fontSize: 40,
+    color: "#3862CC",
+    fontWeight: "bold",
   },
   profileName: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: "#273F7D",
     textAlign: "center",
+    marginBottom: 4,
   },
   profileEmail: {
     fontSize: 14,
     color: "#555",
     textAlign: "center",
   },
-  detailButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    borderRadius: 8,
+
+  // 🔹 Botón cerrar sesión
+  logoutButton: {
+    backgroundColor: "#E74C3C",
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: "center",
   },
-  buttonText: {
+  logoutButtonText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 15,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
 });
 

@@ -43,12 +43,9 @@ export const syncPendingOrders = async (
                     }
                 )) as { data: any };
 
-                console.error(`✅ Orden ${orderId} sincronizada`);
             } catch (err: any) {
-                console.error(`⚠️ No se pudo sincronizar ${orderId}:`, err.message);
                 remaining.push({ orderId, data });
             }
-            console.error('ORDEN: ', orderId,data, 'COMPLETED');
         }
 
         await AsyncStorage.setItem("pendingOrders", JSON.stringify(remaining));

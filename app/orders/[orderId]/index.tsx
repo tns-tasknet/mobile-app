@@ -236,84 +236,83 @@ export default function OrderDetails() {
     );
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-          {order ? (
-            <View style={styles.card}>
-              <Text style={styles.title}>{order.title}</Text>
-              <Text>ID: {order.id}</Text>
-              <Text>Contenido: {order.content}</Text>
-              <Text>Slug: {order.slugText}</Text>
-              <Text>Logo: {order.logo}</Text>
-              <Text>Metadata: {order.metadata}</Text>
-              <Text>Response: {order.response}</Text>
-              <Text>State: {order.status}</Text>
+  <SafeAreaProvider>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {order ? (
+          <View style={styles.card}>
+            <Text style={styles.title}>{order.title}</Text>
+            <Text>ID: {order.id}</Text>
+            <Text>Contenido: {order.content}</Text>
+            <Text>Slug: {order.slugText}</Text>
+            <Text>Logo: {order.logo}</Text>
+            <Text>Metadata: {order.metadata}</Text>
+            <Text>Response: {order.response}</Text>
+            <Text>State: {order.status}</Text>
 
-              {order.status !== "COMPLETED" ? (
-                <>
-                  <Text style={styles.sectionTitle}>Editar respuesta:</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Escribe una respuesta..."
-                    value={responseText}
-                    onChangeText={setResponseText}
-                    multiline
-                  />
+            {order.status !== "COMPLETED" ? (
+              <>
+                <Text style={styles.sectionTitle}>Editar respuesta:</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Escribe una respuesta..."
+                  value={responseText}
+                  onChangeText={setResponseText}
+                  multiline
+                />
 
-                  <Text style={styles.sectionTitle}>Cambiar estado:</Text>
-                  <Picker
-                    selectedValue={status}
-                    onValueChange={setStatus}
-                    style={styles.picker}
-                  >
-                    {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
-                      <Picker.Item key={st} label={st} value={st} />
-                    ))}
-                  </Picker>
+                <Text style={styles.sectionTitle}>Cambiar estado:</Text>
+                <Picker
+                  selectedValue={status}
+                  onValueChange={setStatus}
+                  style={styles.picker}
+                >
+                  {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
+                    <Picker.Item key={st} label={st} value={st} />
+                  ))}
+                </Picker>
 
-                  {status === "COMPLETED" && (
-                    <>
-                      <Text style={styles.sectionTitle}>Firma digital:</Text>
-                      <View style={styles.signatureBox}>
-                        <SignatureCanvas
-                          ref={signatureRef}
-                          onOK={handleSignature}
-                          descriptionText="Firma aquí"
-                          clearText="Borrar"
-                          confirmText="Guardar"
-                          webStyle={signatureWebStyle}
-                        />
-                      </View>
+                {status === "COMPLETED" && (
+                  <>
+                    <Text style={styles.sectionTitle}>Firma digital:</Text>
+                    <View style={styles.signatureBox}>
+                      <SignatureCanvas
+                        ref={signatureRef}
+                        onOK={handleSignature}
+                        descriptionText="Firma aquí"
+                        clearText="Borrar"
+                        confirmText="Guardar"
+                        webStyle={signatureWebStyle}
+                      />
+                    </View>
 
-                      <Text style={styles.sectionTitle}>Tomar foto:</Text>
-                      <Button title="Tomar Foto" onPress={takePhoto} />
-                      {photo && (
-                        <Image
-                          source={{ uri: photo }}
-                          style={styles.previewImage}
-                        />
-                      )}
-                    </>
-                  )}
+                    <Text style={styles.sectionTitle}>Tomar foto:</Text>
+                    <Button title="Tomar Foto" onPress={takePhoto} />
+                    {photo && (
+                      <Image
+                        source={{ uri: photo }}
+                        style={styles.previewImage}
+                      />
+                    )}
+                  </>
+                )}
 
-                  <Button title="Actualizar Reporte" onPress={updateOrder} disabled={loading} />
-                </>
-              ) : (
-                <Text style={styles.sectionTitle}>
-                  ✅ Esta orden está completada y no puede modificarse.
-                </Text>
-              )}
-            </View>
-          ) : (
-            <Text style={styles.infoText}>No hay detalles disponibles.</Text>
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    </SafeAreaProvider>
+                <Button title="Actualizar Reporte" onPress={updateOrder} disabled={loading} />
+              </>
+            ) : (
+              <Text style={styles.sectionTitle}>
+                ✅ Esta orden está completada y no puede modificarse.
+              </Text>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.infoText}>No hay detalles disponibles.</Text>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  </SafeAreaProvider>
   );
 }
-
 const signatureWebStyle = `
   .m-signature-pad--footer { display: none; margin: 0px; }
 `;
@@ -337,6 +336,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 8,
+    color: "#273F7D",
+    textAlign: "center",
   },
   input: {
     borderWidth: 1,
@@ -354,15 +355,24 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: "bold",
     marginTop: 16,
+    color: "#273F7D",
   },
   infoText: {
     textAlign: "center",
     color: "#FAF9F6",
+    marginTop: 20,
   },
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#273F7D",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#273F7D",
   },
   signatureBox: {
     height: 200,

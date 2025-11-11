@@ -1,7 +1,7 @@
 import NetInfo from "@react-native-community/netinfo";
 import { useEffect, useRef, useState } from "react";
 
-export const useNetwork = (stabilizationDelay = 500) => {
+export const useNetwork = (stabilizationDelay = 150) => {
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastStableValue = useRef<boolean | null>(null);
