@@ -28,6 +28,7 @@ export default function ReportDetail() {
         );
         const fetched = Array.isArray(res.data) ? res.data[0] : res.data || null;
         if (!fetched) return;
+        console.log('Report details : ', res);
         setReport(fetched.report);
       } catch (err) {
         console.error("Error al cargar reporte:", err);

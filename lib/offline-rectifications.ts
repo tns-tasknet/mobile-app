@@ -7,10 +7,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export const savePendingRectification = async (reportId: string, data: any) => {
 
     try {
-        const existing = JSON.parse(await AsyncStorage.getItem("pendingOrders") || "[]");
+        const existing = JSON.parse(await AsyncStorage.getItem("pendingRectifications") || "[]");
         const updated = existing.filter((o: any) => o.reportId !== reportId);
         updated.push({ reportId, data, timestamp: Date.now() });
-        await AsyncStorage.setItem("pendingOrders", JSON.stringify(updated));
+        await AsyncStorage.setItem("pendingRectifications", JSON.stringify(updated));
     } catch (e) {
         console.error("Error al guardar pendiente:", e);
     }
@@ -27,7 +27,7 @@ export const syncPendingRectification = async (
 ) => {
     if (!isOnline) return;
     try {
-        const stored = JSON.parse(await AsyncStorage.getItem("pendingOrders") || "[]");
+        const stored = JSON.parse(await AsyncStorage.getItem("pendingRectifications") || "[]");
         if (!stored.length) return;
 
         const remaining: any[] = [];
@@ -48,7 +48,7 @@ export const syncPendingRectification = async (
             }
         }
 
-        await AsyncStorage.setItem("pendingOrders", JSON.stringify(remaining));
+        await AsyncStorage.setItem("pendingRectifications", JSON.stringify(remaining));
     } catch (e) {
         console.error("Error al sincronizar pendientes:", e);
     }

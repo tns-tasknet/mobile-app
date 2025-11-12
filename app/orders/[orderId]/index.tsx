@@ -3,6 +3,7 @@ import { useWaitForConnection } from "@/hooks/useWaitForConnection";
 import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
 import { savePendingOrder, syncPendingOrders } from "@/lib/offline-orders";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import * as Device from "expo-device";
@@ -20,6 +21,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -206,12 +208,15 @@ export default function OrderDetails() {
               setLoading(true);
 
               const bodyData: any = {
-                response: responseText,
+                content: responseText,
                 status,
                 metadata,
                 firma,
                 photo,
+                activities: order.activities || [],
+                materials: order.materials || [],
               };
+
 
               if (!isOnline) {
                 setOrderPending(true);
@@ -304,23 +309,119 @@ export default function OrderDetails() {
       {order.status !== "COMPLETED" && (
         <>
           <Text style={styles.sectionTitle}>Editar respuesta:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe una respuesta..."
-            value={responseText}
-            onChangeText={setResponseText}
-            multiline
-          />
-          <Text style={styles.sectionTitle}>Cambiar estado:</Text>
-          <Picker
-            selectedValue={status}
-            onValueChange={handleStatusChange}
-            style={styles.picker}
-          >
-            {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
-              <Picker.Item key={st} label={st} value={st} />
-            ))}
-          </Picker>
+<TextInput
+  style={styles.input}
+  placeholder="Escribe una respuesta..."
+  value={responseText}
+  onChangeText={setResponseText}
+  multiline
+/>
+
+<View style={styles.separatorSmall} />
+
+{/* === Actividades === */}
+<Text style={styles.sectionTitle}>Actividades</Text>
+{order.activities.length === 0 && (
+  <Text style={styles.placeholderText}>No hay actividades registradas.</Text>
+)}
+
+{order.activities.map((activity: string, index: number) => (
+  <View key={index} style={styles.rowBetween}>
+    <TextInput
+      style={[styles.input, { flex: 1 }]}
+      value={activity}
+      onChangeText={(text) => {
+        const updated = [...order.activities];
+        updated[index] = text;
+        setOrder((prev: any) => ({ ...prev, activities: updated }));
+      }}
+      placeholder={`Actividad ${index + 1}`}
+    />
+    <TouchableOpacity
+      style={styles.iconButton}
+      onPress={() => {
+        const updated = order.activities.filter((_: any, i: number) => i !== index);
+        setOrder((prev: any) => ({ ...prev, activities: updated }));
+      }}
+    >
+      <Ionicons name="trash-outline" size={20} color="#E74C3C" />
+    </TouchableOpacity>
+  </View>
+))}
+
+<TouchableOpacity
+  style={styles.addButton}
+  onPress={() =>
+    setOrder((prev: any) => ({
+      ...prev,
+      activities: [...prev.activities, ""],
+    }))
+  }
+>
+  <Ionicons name="add-circle-outline" size={20} color="#3862CC" />
+  <Text style={styles.addButtonText}>Agregar Actividad</Text>
+</TouchableOpacity>
+
+<View style={styles.separatorSmall} />
+
+{/* === Materiales === */}
+<Text style={styles.sectionTitle}>Materiales</Text>
+{order.materials.length === 0 && (
+  <Text style={styles.placeholderText}>No hay materiales registrados.</Text>
+)}
+
+{order.materials.map((material: string, index: number) => (
+  <View key={index} style={styles.rowBetween}>
+    <TextInput
+      style={[styles.input, { flex: 1 }]}
+      value={material}
+      onChangeText={(text) => {
+        const updated = [...order.materials];
+        updated[index] = text;
+        setOrder((prev: any) => ({ ...prev, materials: updated }));
+      }}
+      placeholder={`Material ${index + 1}`}
+    />
+    <TouchableOpacity
+      style={styles.iconButton}
+      onPress={() => {
+        const updated = order.materials.filter((_: any, i: number) => i !== index);
+        setOrder((prev: any) => ({ ...prev, materials: updated }));
+      }}
+    >
+      <Ionicons name="trash-outline" size={20} color="#E74C3C" />
+    </TouchableOpacity>
+  </View>
+))}
+
+<TouchableOpacity
+  style={styles.addButton}
+  onPress={() =>
+    setOrder((prev: any) => ({
+      ...prev,
+      materials: [...prev.materials, ""],
+    }))
+  }
+>
+  <Ionicons name="add-circle-outline" size={20} color="#3862CC" />
+  <Text style={styles.addButtonText}>Agregar Material</Text>
+</TouchableOpacity>
+
+<View style={styles.separatorSmall} />
+
+{/* === Estado === */}
+<Text style={styles.sectionTitle}>Cambiar estado:</Text>
+<Picker
+  selectedValue={status}
+  onValueChange={handleStatusChange}
+  style={styles.picker}
+>
+  {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
+    <Picker.Item key={st} label={st} value={st} />
+  ))}
+</Picker>
+
+
 
           {/* 🔹 Historial embellecido */}
           {orderHistory.length > 0 && (
@@ -519,5 +620,41 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginTop: 1,
   },
+  rowBetween: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+  marginBottom: 6,
+},
+
+iconButton: {
+  padding: 4,
+  borderRadius: 8,
+},
+
+addButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  backgroundColor: "#EFF3FF",
+  paddingVertical: 8,
+  borderRadius: 10,
+  marginBottom: 10,
+},
+
+addButtonText: {
+  color: "#3862CC",
+  fontWeight: "600",
+},
+
+placeholderText: {
+  color: "#999",
+  fontStyle: "italic",
+  marginBottom: 6,
+},
+
+
 
 });

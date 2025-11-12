@@ -1,10 +1,37 @@
-interface Order {
-  id: number;
+export interface Order {
+  id?: string;
   title: string;
   content: string;
-  status: "PENDING" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED";
-  response?: string;
-  logo?: string;
-  slugText?: string;
-  metadata?: any;
+  organizationId: string;
+  memberId: string;
+  response: string | null;
+  status: "PENDING" | 'SCHEDULED' | "IN_PROGRESS" | "COMPLETED";
+
+  createdAt: string;
+  updatedAt: string | null;
+
+  metadata : {
+    name: string;
+    updatedAt: string | null;
+    deviceId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }
+
+  startedAt?: string | null;
+  closedAt?: string | null;
+
+  activities: string[];
+  materials: string[];
+
+  photo?: string | null;
+  signature?: string | null;
+
+  assignee?: {
+    id: string;
+    name: string;
+    role: string;
+    email?: string;
+  };
+
 }
