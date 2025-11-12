@@ -89,7 +89,7 @@ export default function Home() {
           Hola, {session?.user?.name ?? "Usuario"} 👋
         </Text>
 
-        <Text style={styles.sectionTitle}>Órdenes </Text>
+        <Text style={styles.sectionTitle}>Reportes </Text>
 
         {loading ? (
           <Text style={styles.infoText}>Cargando reportes...</Text>
@@ -103,7 +103,7 @@ export default function Home() {
                   </Text>
 
                   {reports.map((report) => {
-                    const name = report.name ?? "Sin nombre";
+                    const name = report.title ?? "Sin nombre";
                     const id = report.id ?? "Sin ID";
                     const createdAt = report.createdAt
                       ? new Date(report.createdAt).toLocaleString()

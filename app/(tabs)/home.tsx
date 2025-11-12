@@ -12,6 +12,9 @@ export default function Home() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Control de secciones abiertas
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     if (!session && !isPending) {
       router.replace("/login");
@@ -43,17 +46,11 @@ export default function Home() {
 
       fetchOrders();
 
-      // 🔹 Limpieza por si el componente se desmonta
       return () => {
         isActive = false;
       };
     }, [organizationSlug])
   );
-
-
-  const handleLogout = async () => {
-    await authClient.signOut();
-  };
 
   const goToReportDetails = (orderId: any) => {
     router.push(`/orders/${orderId}`);
@@ -69,8 +66,11 @@ export default function Home() {
     return groups;
   };
 
-  const groupedOrders = groupOrdersByStatus(orders);
+  const toggleSection = (status: string) => {
+    setOpenSections((prev) => ({ ...prev, [status]: !prev[status] }));
+  };
 
+  const groupedOrders = groupOrdersByStatus(orders);
   const statusLabels: Record<string, string> = {
     pending: "Pendientes",
     in_progress: "En proceso",
@@ -82,7 +82,7 @@ export default function Home() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-\        <Text style={styles.saludo}>
+        <Text style={styles.saludo}>
           Hola, {session?.user?.name ?? "Usuario"} 👋
         </Text>
 
@@ -93,49 +93,59 @@ export default function Home() {
         ) : (
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             {Object.keys(groupedOrders).length > 0 ? (
-              Object.entries(groupedOrders).map(([status, reports]) => (
-                <View key={status} style={styles.statusGroup}>
-                  <Text style={styles.statusTitle}>
-                    {statusLabels[status] ?? status}
-                  </Text>
+              Object.entries(groupedOrders).map(([status, reports]) => {
+                const isOpen = openSections[status] ?? true; // abierto por defecto
+                return (
+                  <View key={status} style={styles.statusGroup}>
+                    <Pressable onPress={() => toggleSection(status)} style={styles.statusHeader}>
+                      <Text style={styles.statusTitle}>
+                        {statusLabels[status] ?? status} ({reports.length})
+                      </Text>
+                      <Text style={styles.toggleIcon}>{isOpen ? "▼" : "►"}</Text>
+                    </Pressable>
 
-                  {reports.map((report) => {
-                    const name = report.name ?? "Sin nombre";
-                    const id = report.id ?? "Sin ID";
-                    const createdAt = report.createdAt
-                      ? new Date(report.createdAt).toLocaleString()
-                      : "Sin fecha";
+                    {isOpen &&
+                      reports.map((report) => {
+                        const name = report.title ?? "Sin nombre";
+                        const id = report.id ?? "Sin ID";
+                        const description =  report.content ?? "No content";
+                        const status = report.status ?? "??";
+                        const createdAt = report.createdAt
+                          ? new Date(report.createdAt).toLocaleString()
+                          : "Sin fecha";
 
-                    return (
-                      <View key={id} style={styles.reportCard}>
-                        <View style={styles.cardHeader}>
-                          <Text
-                            style={[
-                              styles.reportTitle,
-                              name === "Sin nombre" && styles.missingName,
-                            ]}
-                          >
-                            {name}
-                          </Text>
-                          <Text style={styles.dateText}>{createdAt}</Text>
-                        </View>
+                        return (
+                          <View key={id} style={styles.reportCard}>
+                            <View style={styles.cardHeader}>
+                              <Text
+                                style={[
+                                  styles.reportTitle,
+                                  name === "Sin nombre" && styles.missingName,
+                                ]}
+                              >
+                                {name}
+                              </Text>
+                              <Text style={styles.dateText}>{createdAt}</Text>
+                            </View>
 
-                        <Text style={styles.reportId}>ID: {id}</Text>
+                            <Text style={styles.reportId}>description: {description}</Text>
+                            <Text style={styles.reportId}>Status: {status}</Text>
 
-                        <Pressable
-                          onPress={() => goToReportDetails(id)}
-                          style={({ pressed }) => [
-                            styles.detailButton,
-                            pressed && { opacity: 0.85 },
-                          ]}
-                        >
-                          <Text style={styles.detailButtonText}>Ver detalles</Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </View>
-              ))
+                            <Pressable
+                              onPress={() => goToReportDetails(id)}
+                              style={({ pressed }) => [
+                                styles.detailButton,
+                                pressed && { opacity: 0.85 },
+                              ]}
+                            >
+                              <Text style={styles.detailButtonText}>Ver detalles</Text>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                  </View>
+                );
+              })
             ) : (
               <Text style={styles.infoText}>No hay reportes disponibles.</Text>
             )}
@@ -171,19 +181,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusGroup: {
-    marginBottom: 30,
+    marginBottom: 20,
+  },
+  statusHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#E6ECFF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   statusTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
     color: "#3862CC",
-    marginBottom: 10,
+  },
+  toggleIcon: {
+    fontSize: 16,
+    color: "#3862CC",
   },
   reportCard: {
     backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 12,
-    marginBottom: 14,
+    marginTop: 10,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 2 },
