@@ -520,7 +520,4 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-
-
-  
 });
