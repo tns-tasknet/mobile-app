@@ -1,7 +1,8 @@
 export interface Message {
     id?: string;
     organizationId?: string;
-    content: string;
+    text: string;
+    content?: string;
     tags: string[];
     orderId?: string;
     memberId?: string;
@@ -15,6 +16,7 @@ export interface Message {
             name: string,
             role: string,
         }
+        userId: string,
     }
 
 }

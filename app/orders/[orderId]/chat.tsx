@@ -36,7 +36,7 @@ const TAG_OPTIONS = [
 ];
 
 export default function RectificationsScreen() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[] | null>(null);
   const [newRectification, setNewRectification] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const { orderId } = useGlobalSearchParams<{ orderId: string }>();
@@ -54,7 +54,7 @@ export default function RectificationsScreen() {
   }, [session, isPending]);
 
   // 🔹 Obtener mensajes
-  const fetchRectification = useCallback(async () => {
+  const fetchMessages = useCallback(async () => {
     if (!orderId) return;
     try {
       if (!isOnline) {
@@ -69,7 +69,7 @@ export default function RectificationsScreen() {
       );
 
       const hasError = await handleApiError(res, {
-        onConflictReload: fetchRectification,
+        onConflictReload: fetchMessages,
         isOnline,
       });
       if (hasError) return;
@@ -86,10 +86,10 @@ export default function RectificationsScreen() {
   }, [isOnline, orderId]);
 
   useEffect(() => {
-    if (!isPending && session && orderId && messages.length === 0 && isOnline !== null) {
-      fetchRectification();
+    if (!isPending && session && orderId && messages === null && isOnline !== null) {
+      fetchMessages();
     }
-  }, [isPending, session, orderId, fetchRectification, isOnline]);
+  }, [isPending, session, orderId, fetchMessages, messages, isOnline]);
 
   // 🔹 Sincronizar pendientes al reconectarse
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function RectificationsScreen() {
       if (isOnline && rectificationPending) {
         try {
           await syncPendingMessages(baseURL, organizationSlug, authClient, isOnline);
-          await fetchRectification();
+          await fetchMessages();
           setRectificationPending(false);
         } catch (err) {
           console.error("❌ Error al sincronizar mensajes:", err);
@@ -125,7 +125,7 @@ export default function RectificationsScreen() {
 
     const timestamp = new Date().toISOString();
     const bodyData: Message = {
-      content: newRectification.trim(),
+      text: newRectification.trim(),
       tags: selectedTags,
     };
 
@@ -152,12 +152,12 @@ export default function RectificationsScreen() {
       );
 
       const hasError = await handleApiError(res, {
-        onConflictReload: fetchRectification,
+        onConflictReload: fetchMessages,
         isOnline,
       });
       if (hasError) return;
 
-      await fetchRectification();
+      await fetchMessages();
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Error desconocido");
       console.error(err);
@@ -167,73 +167,113 @@ export default function RectificationsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.chatContainer}>
           <ScrollView
             ref={scrollViewRef}
-            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() =>
+              scrollViewRef.current?.scrollToEnd({ animated: true })
+            }
             contentContainerStyle={styles.messagesContainer}
             showsVerticalScrollIndicator={false}
           >
-            {loading ? (
+            {loading || messages === null ? (
               <Text style={styles.emptyText}>Cargando...</Text>
             ) : messages.length === 0 ? (
               <Text style={styles.emptyText}>No hay mensajes aún.</Text>
             ) : (
               messages.map((msg) => {
-                const isUser = msg.memberId === user?.id;
-                return (
-                  <View
-                    key={msg.id ?? msg.createdAt}
-                    style={[
-                      styles.messageBubble,
-                      isUser ? styles.userBubble : styles.otherBubble,
-                    ]}
-                  >
-                    <View style={styles.headerRow}>
-                      {msg.sender?.user?.image ? (
-                        <Image
-                          source={{ uri: msg.sender?.user.image }}
-                          style={styles.avatar}
-                        />
-                      ) : (
-                        <View style={styles.placeholderAvatar}>
-                          <Text style={{ color: "#FFF" }}>
-                            {msg.sender?.user?.name?.[0] ?? "?"}
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={styles.authorText}>
-                        {msg.sender?.user?.name} ({msg.sender?.user?.role})
-                      </Text>
-                    </View>
+  // 🔹 Detección robusta de si el mensaje es del usuario autenticado
+  const isUser =
+            msg.sender?.userId === user?.id 
 
-                    <Text style={styles.messageText}>{msg.content}</Text>
+  return (
+    <View
+      key={msg.id ?? msg.createdAt}
+      style={[
+        styles.messageWrapper,
+        isUser ? { alignItems: "flex-end" } : { alignItems: "flex-start" },
+      ]}
+    >
+      {!isUser && (
+        <View style={styles.headerRow}>
+          {msg.sender?.user?.image ? (
+            <Image
+              source={{ uri: msg.sender.user.image }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={styles.placeholderAvatar}>
+              <Text style={{ color: "#FFF" }}>
+                {msg.sender?.user?.name?.[0] ?? "?"}
+              </Text>
+            </View>
+          )}
+          <Text style={styles.authorText}>
+            {msg.sender?.user?.name ?? "Usuario"}{" "}
+            <Text style={{ color: "#777" }}>
+              ({msg.sender?.user?.role ?? "sin rol"})
+            </Text>
+          </Text>
+        </View>
+      )}
 
-                    {/* 🔹 Tags */}
-                    <View style={styles.tagList}>
-                      {msg.tags?.map((tag) => (
-                        <View key={tag} style={styles.tagBadge}>
-                          <Text style={styles.tagText}>#{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
+      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.otherBubble]}>
+        <Text
+          style={[
+            styles.messageText,
+            isUser ? { color: "#FFF" } : { color: "#222" },
+          ]}
+        >
+          {msg.content ?? msg.text}
+        </Text>
 
-                    <Text style={styles.timeText}>
-                      {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : "Fecha no disponible"}
-                    </Text>
+        {msg.tags?.length > 0 && (
+          <View style={styles.tagList}>
+            {msg.tags.map((tag) => (
+              <View
+                key={tag}
+                style={[
+                  styles.tagBadge,
+                  isUser ? { backgroundColor: "#FFF2", borderWidth: 0 } : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tagText,
+                    isUser ? { color: "#FFF" } : { color: "#273F7D" },
+                  ]}
+                >
+                  #{tag}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-                  </View>
-                );
-              })
+        <Text
+          style={[
+            styles.timeText,
+            isUser ? { color: "#E6E6E6" } : { color: "#888" },
+          ]}
+        >
+          {msg.createdAt
+            ? new Date(msg.createdAt).toLocaleString()
+            : "Fecha no disponible"}
+        </Text>
+      </View>
+    </View>
+  );
+})
             )}
           </ScrollView>
 
-          {/* 🔹 Selector de tags */}
           <View style={styles.tagContainer}>
             {TAG_OPTIONS.map((tag) => (
               <TouchableOpacity
@@ -256,7 +296,6 @@ export default function RectificationsScreen() {
             ))}
           </View>
 
-          {/* 🔹 Input + Enviar */}
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
@@ -269,7 +308,9 @@ export default function RectificationsScreen() {
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                (!newRectification.trim() || selectedTags.length === 0) && { backgroundColor: "#AAA" },
+                (!newRectification.trim() || selectedTags.length === 0) && {
+                  backgroundColor: "#AAA",
+                },
               ]}
               onPress={addRectification}
               disabled={!newRectification.trim() || selectedTags.length === 0}
@@ -278,8 +319,8 @@ export default function RectificationsScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -288,52 +329,7 @@ const styles = StyleSheet.create({
   chatContainer: { flex: 1, padding: 10 },
   messagesContainer: { paddingBottom: 120 },
   emptyText: { textAlign: "center", color: "#555", marginTop: 30 },
-  messageBubble: {
-    maxWidth: "85%",
-    padding: 10,
-    borderRadius: 10,
-    marginVertical: 6,
-  },
-  userBubble: {
-    alignSelf: "flex-end",
-    backgroundColor: "#3862CC",
-  },
-  otherBubble: {
-    alignSelf: "flex-start",
-    backgroundColor: "#E4E8F5",
-  },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginRight: 8,
-  },
-  placeholderAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#273F7D",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  authorText: { fontSize: 12, fontWeight: "bold", color: "#222" },
-  messageText: { fontSize: 15, color: "#000", marginTop: 2 },
-  tagList: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
-  tagBadge: {
-    backgroundColor: "#273F7D",
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  tagText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
-  timeText: {
-    fontSize: 10,
-    color: "#ccc",
-    alignSelf: "flex-end",
-    marginTop: 4,
-  },
+
   tagContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -386,4 +382,80 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     fontSize: 14,
   },
+  messageWrapper: {
+    width: "100%",
+    marginVertical: 6,
+  },
+  messageBubble: {
+    maxWidth: "80%",
+    borderRadius: 16,
+    padding: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  userBubble: {
+    backgroundColor: "#3862CC",
+    alignSelf: "flex-end",
+    borderBottomRightRadius: 4,
+  },
+  otherBubble: {
+    backgroundColor: "#E8EBF7",
+    alignSelf: "flex-start",
+    borderBottomLeftRadius: 4,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 8,
+  },
+  placeholderAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#273F7D",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  authorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#273F7D",
+  },
+  tagList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 6,
+    gap: 6,
+  },
+  tagBadge: {
+    borderWidth: 1,
+    borderColor: "#273F7D",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  timeText: {
+    fontSize: 10,
+    marginTop: 6,
+    alignSelf: "flex-end",
+  },
 });
+

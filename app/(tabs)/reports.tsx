@@ -98,9 +98,7 @@ export default function Home() {
             {Object.keys(groupedOrders).length > 0 ? (
               Object.entries(groupedOrders).map(([status, reports]) => (
                 <View key={status} style={styles.statusGroup}>
-                  <Text style={styles.statusTitle}>
-                    {statusLabels[status] ?? status}
-                  </Text>
+
 
                   {reports.map((report) => {
                     const name = report.title ?? "Sin nombre";

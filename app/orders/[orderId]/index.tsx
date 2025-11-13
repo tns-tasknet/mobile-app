@@ -45,7 +45,7 @@ export default function OrderDetails() {
   const [firma, setFirma] = useState<string | null>(null);
   const signatureRef = useRef<SignatureViewRef>(null);
   const [metadata, setMetadata] = useState<any>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [orderPending, setOrderPending] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [statusHistory, setStatusHistory] = useState<
@@ -159,22 +159,24 @@ export default function OrderDetails() {
 
   // --- Tomar foto directamente ---
   const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permiso denegado", "Se necesita acceso a la cámara para tomar fotos.");
-      return;
-    }
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  if (status !== "granted") {
+    Alert.alert("Permiso denegado", "Se necesita acceso a la cámara para tomar fotos.");
+    return;
+  }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
-      quality: 0.7,
-      base64: true,
-    });
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: false,
+    quality: 0.7,
+    base64: true,
+  });
 
-    if (!result.canceled) {
-      setPhoto(`data:image/jpeg;base64,${result.assets[0].base64}`);
-    }
-  };
+  if (!result.canceled) {
+    const newPhoto = `data:image/jpeg;base64,${result.assets[0].base64}`;
+    setPhotos((prev) => [...prev, newPhoto]);
+  }
+};
+
 
   // --- Cuando vuelve el internet, intenta sincronizar las órdenes pendientes ---
   useEffect(() => {
@@ -196,6 +198,33 @@ export default function OrderDetails() {
   // --- Actualizar orden ---
   const updateOrder = async () => {
     if (!session) return;
+    // ⚠️ Validación de campos requeridos antes de confirmar
+  if (!responseText.trim()) {
+    Alert.alert("Campo incompleto", "Por favor, ingresa una respuesta antes de guardar.");
+    return;
+  }
+
+  if (!firma) {
+    Alert.alert("Campo incompleto", "Debes firmar antes de guardar el reporte.");
+    return;
+  }
+
+  if (!photos || photos.length === 0) {
+    Alert.alert("Campo incompleto", "Debes tomar al menos una foto como evidencia.");
+    return;
+  }
+
+  // Verificar que actividades y materiales no estén vacíos si existen
+  const hasEmptyActivities = order?.activities?.some((a: string) => !a.trim());
+  const hasEmptyMaterials = order?.materials?.some((m: string) => !m.trim());
+
+  if (hasEmptyActivities || hasEmptyMaterials) {
+    Alert.alert(
+      "Campos vacíos",
+      "Asegúrate de completar todas las actividades y materiales antes de guardar."
+    );
+    return;
+  }
     Alert.alert(
       "Confirmar guardado",
       "¿Estás seguro de que deseas guardar esta orden?",
@@ -215,7 +244,7 @@ export default function OrderDetails() {
                 signature: firma,
                 evidence: [
                   ...(order?.evidence || []), // conserva evidencias previas si las hay
-                  ...(photo ? [photo] : []),  // agrega la nueva foto solo si existe
+                  ...(photos ),  // agrega la nueva foto solo si existe
                 ],
                 activities: order?.activities || [],
                 materials: order?.materials || [],
@@ -494,7 +523,25 @@ export default function OrderDetails() {
                       <Button title="Reiniciar Firma" onPress={resetSignature} color="#3862CC" />
                       <View style={styles.separatorSmall} />
                       <Button title="Tomar Foto" onPress={takePhoto} color="#3862CC" />
-                      {photo && <Image source={{ uri: photo }} style={styles.previewImage} />}
+{photos.length > 0 && (
+  <>
+    <Text style={styles.sectionTitle}>Fotos tomadas:</Text>
+    {photos.map((uri, index) => (
+      <View key={index} style={styles.photoItem}>
+        <Image source={{ uri }} style={styles.previewImage} />
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() =>
+            setPhotos((prev) => prev.filter((_, i) => i !== index))
+          }
+        >
+          <Ionicons name="trash-outline" size={22} color="#E74C3C" />
+        </TouchableOpacity>
+      </View>
+    ))}
+  </>
+)}
+
                     </>
                   )}
 
@@ -677,6 +724,20 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginBottom: 6,
   },
+  photoItem: {
+  position: "relative",
+  marginBottom: 10,
+},
+
+deleteButton: {
+  position: "absolute",
+  top: 8,
+  right: 8,
+  backgroundColor: "rgba(255,255,255,0.8)",
+  borderRadius: 20,
+  padding: 4,
+},
+
 
 
 
