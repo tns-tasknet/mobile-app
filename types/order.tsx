@@ -24,8 +24,8 @@ export interface Order {
   activities: string[];
   materials: string[];
 
-  photo?: string | null;
   signature?: string | null;
+  evidence?: string[] | null;
 
   assignee?: {
     id: string;

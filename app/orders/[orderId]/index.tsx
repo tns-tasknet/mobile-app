@@ -131,7 +131,7 @@ export default function OrderDetails() {
       setOrder(res.data.report);
       setResponseText(fetched.response || "");
       setStatus(fetched.status || "PENDING");
-      console.log("OrderDetails: ", res.data.report);
+      //console.log("OrderDetails: ", res.data.report);
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Error desconocido");
       console.error(err);
@@ -153,6 +153,7 @@ export default function OrderDetails() {
 
   // --- Guardar firma ---
   const handleSignature = (sig: string) => {
+    console.log(sig.substring(0, 10));
     setFirma(sig);
   };
 
@@ -211,11 +212,30 @@ export default function OrderDetails() {
                 content: responseText,
                 status,
                 metadata,
-                firma,
-                photo,
-                activities: order.activities || [],
-                materials: order.materials || [],
+                signature: firma,
+                evidence: [
+                  ...(order?.evidence || []), // conserva evidencias previas si las hay
+                  ...(photo ? [photo] : []),  // agrega la nueva foto solo si existe
+                ],
+                activities: order?.activities || [],
+                materials: order?.materials || [],
               };
+
+
+              console.log({
+                memberId: bodyData.memberId,
+                reportId: bodyData.reportId,
+                createdAt: bodyData.createdAt,
+                content: bodyData.content,
+                signature: bodyData.signature
+                  ? `${bodyData.signature.substring(0, 10)}... [${bodyData.signature.length} chars]`
+                  : null,
+                evidence: Array.isArray(bodyData.evidence)
+                  ? bodyData.evidence.map((img: string) => `${img.substring(0, 10)}... [${img.length} chars]`)
+                  : bodyData.evidence
+                    ? `${bodyData.evidence.substring(0, 10)}... [${bodyData.evidence.length} chars]`
+                    : null,
+              });
 
 
               if (!isOnline) {
@@ -285,210 +305,213 @@ export default function OrderDetails() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
-  contentContainerStyle={styles.scrollContainer}
-  keyboardShouldPersistTaps="handled"
-  scrollEnabled={!isSigning}
->
-  {order ? (
-    <View style={styles.card}>
-      <Text style={styles.title}>{order.title}</Text>
-      <View style={styles.row}>
-        <Text style={styles.label}>ID:</Text>
-        <Text style={styles.value}>{order.id}</Text>
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Contenido:</Text>
-        <Text style={styles.value}>{order.content}</Text>
-      </View>
-
-      <View style={styles.row}>
-        <Text style={styles.label}>Estado actual:</Text>
-        <Text style={[styles.value, { fontWeight: "bold" }]}>{order.status}</Text>
-      </View>
-
-      {order.status !== "COMPLETED" && (
-        <>
-          <Text style={styles.sectionTitle}>Editar respuesta:</Text>
-<TextInput
-  style={styles.input}
-  placeholder="Escribe una respuesta..."
-  value={responseText}
-  onChangeText={setResponseText}
-  multiline
-/>
-
-<View style={styles.separatorSmall} />
-
-{/* === Actividades === */}
-<Text style={styles.sectionTitle}>Actividades</Text>
-{order.activities.length === 0 && (
-  <Text style={styles.placeholderText}>No hay actividades registradas.</Text>
-)}
-
-{order.activities.map((activity: string, index: number) => (
-  <View key={index} style={styles.rowBetween}>
-    <TextInput
-      style={[styles.input, { flex: 1 }]}
-      value={activity}
-      onChangeText={(text) => {
-        const updated = [...order.activities];
-        updated[index] = text;
-        setOrder((prev: any) => ({ ...prev, activities: updated }));
-      }}
-      placeholder={`Actividad ${index + 1}`}
-    />
-    <TouchableOpacity
-      style={styles.iconButton}
-      onPress={() => {
-        const updated = order.activities.filter((_: any, i: number) => i !== index);
-        setOrder((prev: any) => ({ ...prev, activities: updated }));
-      }}
-    >
-      <Ionicons name="trash-outline" size={20} color="#E74C3C" />
-    </TouchableOpacity>
-  </View>
-))}
-
-<TouchableOpacity
-  style={styles.addButton}
-  onPress={() =>
-    setOrder((prev: any) => ({
-      ...prev,
-      activities: [...prev.activities, ""],
-    }))
-  }
->
-  <Ionicons name="add-circle-outline" size={20} color="#3862CC" />
-  <Text style={styles.addButtonText}>Agregar Actividad</Text>
-</TouchableOpacity>
-
-<View style={styles.separatorSmall} />
-
-{/* === Materiales === */}
-<Text style={styles.sectionTitle}>Materiales</Text>
-{order.materials.length === 0 && (
-  <Text style={styles.placeholderText}>No hay materiales registrados.</Text>
-)}
-
-{order.materials.map((material: string, index: number) => (
-  <View key={index} style={styles.rowBetween}>
-    <TextInput
-      style={[styles.input, { flex: 1 }]}
-      value={material}
-      onChangeText={(text) => {
-        const updated = [...order.materials];
-        updated[index] = text;
-        setOrder((prev: any) => ({ ...prev, materials: updated }));
-      }}
-      placeholder={`Material ${index + 1}`}
-    />
-    <TouchableOpacity
-      style={styles.iconButton}
-      onPress={() => {
-        const updated = order.materials.filter((_: any, i: number) => i !== index);
-        setOrder((prev: any) => ({ ...prev, materials: updated }));
-      }}
-    >
-      <Ionicons name="trash-outline" size={20} color="#E74C3C" />
-    </TouchableOpacity>
-  </View>
-))}
-
-<TouchableOpacity
-  style={styles.addButton}
-  onPress={() =>
-    setOrder((prev: any) => ({
-      ...prev,
-      materials: [...prev.materials, ""],
-    }))
-  }
->
-  <Ionicons name="add-circle-outline" size={20} color="#3862CC" />
-  <Text style={styles.addButtonText}>Agregar Material</Text>
-</TouchableOpacity>
-
-<View style={styles.separatorSmall} />
-
-{/* === Estado === */}
-<Text style={styles.sectionTitle}>Cambiar estado:</Text>
-<Picker
-  selectedValue={status}
-  onValueChange={handleStatusChange}
-  style={styles.picker}
->
-  {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
-    <Picker.Item key={st} label={st} value={st} />
-  ))}
-</Picker>
-
-
-
-          {/* 🔹 Historial embellecido */}
-          {orderHistory.length > 0 && (
-            <View style={styles.timelineContainer}>
-              <Text style={styles.sectionTitle}>Historial de estados:</Text>
-              {orderHistory.map((entry, i) => (
-                <View key={i} style={styles.timelineItem}>
-                  <View
-                    style={[
-                      styles.timelineDot,
-                      entry.status === "COMPLETED"
-                        ? { backgroundColor: "#28A745" }
-                        : entry.status === "IN_PROGRESS"
-                        ? { backgroundColor: "#FFC107" }
-                        : entry.status === "SCHEDULED"
-                        ? { backgroundColor: "#17A2B8" }
-                        : { backgroundColor: "#6C757D" },
-                    ]}
-                  />
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineStatus}>{entry.status}</Text>
-                    <Text style={styles.timelineTimestamp}>
-                      {new Date(entry.timestamp).toLocaleString()}
-                    </Text>
-                    <Text style={styles.timelineUser}>por {entry.user}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {status === "COMPLETED" && (
-            <>
-              <Text style={styles.sectionTitle}>Firma digital:</Text>
-              <View style={styles.signatureBox}>
-                <SignatureCanvas
-                  ref={signatureRef}
-                  onOK={handleSignature}
-                  onBegin={() => setIsSigning(true)}
-                  onEnd={() => setIsSigning(false)}
-                  descriptionText="Firma aquí"
-                  clearText="Borrar"
-                  confirmText="Guardar"
-                  webStyle={signatureWebStyle}
-                />
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={!isSigning}
+        >
+          {order ? (
+            <View style={styles.card}>
+              <Text style={styles.title}>{order.title}</Text>
+              <View style={styles.row}>
+                <Text style={styles.label}>ID:</Text>
+                <Text style={styles.value}>{order.id}</Text>
               </View>
-              <Button title="Reiniciar Firma" onPress={resetSignature} color="#3862CC" />
-              <View style={styles.separatorSmall} />
-              <Button title="Tomar Foto" onPress={takePhoto} color="#3862CC" />
-              {photo && <Image source={{ uri: photo }} style={styles.previewImage} />}
-            </>
-          )}
+              <View style={styles.row}>
+                <Text style={styles.label}>Contenido:</Text>
+                <Text style={styles.value}>{order.content}</Text>
+              </View>
 
-          <View style={styles.separator} />
-          <Button
-            title="Actualizar Reporte"
-            onPress={updateOrder}
-            disabled={loading}
-            color="#28A745"
-          />
-        </>
-      )}
-    </View>
-  ) : (
-    <Text style={styles.infoText}>No hay detalles disponibles.</Text>
-  )}
-</ScrollView>
+              <View style={styles.row}>
+                <Text style={styles.label}>Estado actual:</Text>
+                <Text style={[styles.value, { fontWeight: "bold" }]}>{order.status}</Text>
+              </View>
+
+              {order.status !== "COMPLETED" && (
+                <>
+                  <Text style={styles.sectionTitle}>Editar respuesta:</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Escribe una respuesta..."
+                    value={responseText}
+                    onChangeText={setResponseText}
+                    multiline
+                  />
+
+                  <View style={styles.separatorSmall} />
+
+                  {/* === Actividades === */}
+                  <Text style={styles.sectionTitle}>Actividades</Text>
+                  {order.activities.length === 0 && (
+                    <Text style={styles.placeholderText}>No hay actividades registradas.</Text>
+                  )}
+
+                  {order.activities.map((activity: string, index: number) => (
+                    <View key={index} style={styles.rowBetween}>
+                      <TextInput
+                        style={[styles.input, { flex: 1 }]}
+                        value={activity}
+                        onChangeText={(text) => {
+                          const updated = [...order.activities];
+                          updated[index] = text;
+                          setOrder((prev: any) => ({ ...prev, activities: updated }));
+                        }}
+                        placeholder={`Actividad ${index + 1}`}
+                      />
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => {
+                          const updated = order.activities.filter((_: any, i: number) => i !== index);
+                          setOrder((prev: any) => ({ ...prev, activities: updated }));
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="#E74C3C" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={() =>
+                      setOrder((prev: any) => ({
+                        ...prev,
+                        activities: [...prev.activities, ""],
+                      }))
+                    }
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color="#3862CC" />
+                    <Text style={styles.addButtonText}>Agregar Actividad</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.separatorSmall} />
+
+                  {/* === Materiales === */}
+                  <Text style={styles.sectionTitle}>Materiales</Text>
+                  {order.materials.length === 0 && (
+                    <Text style={styles.placeholderText}>No hay materiales registrados.</Text>
+                  )}
+
+                  {order.materials.map((material: string, index: number) => (
+                    <View key={index} style={styles.rowBetween}>
+                      <TextInput
+                        style={[styles.input, { flex: 1 }]}
+                        value={material}
+                        onChangeText={(text) => {
+                          const updated = [...order.materials];
+                          updated[index] = text;
+                          setOrder((prev: any) => ({ ...prev, materials: updated }));
+                        }}
+                        placeholder={`Material ${index + 1}`}
+                      />
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => {
+                          const updated = order.materials.filter((_: any, i: number) => i !== index);
+                          setOrder((prev: any) => ({ ...prev, materials: updated }));
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="#E74C3C" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={() =>
+                      setOrder((prev: any) => ({
+                        ...prev,
+                        materials: [...prev.materials, ""],
+                      }))
+                    }
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color="#3862CC" />
+                    <Text style={styles.addButtonText}>Agregar Material</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.separatorSmall} />
+
+                  {/* === Estado === */}
+                  <Text style={styles.sectionTitle}>Cambiar estado:</Text>
+                  <Picker
+                    selectedValue={status}
+                    onValueChange={handleStatusChange}
+                    style={styles.picker}
+                  >
+                    {["PENDING", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].map((st) => (
+                      <Picker.Item key={st} label={st} value={st} />
+                    ))}
+                  </Picker>
+
+
+
+                  {/* 🔹 Historial embellecido */}
+                  {orderHistory.length > 0 && (
+                    <View style={styles.timelineContainer}>
+                      <Text style={styles.sectionTitle}>Historial de estados:</Text>
+                      {orderHistory.map((entry, i) => (
+                        <View key={i} style={styles.timelineItem}>
+                          <View
+                            style={[
+                              styles.timelineDot,
+                              entry.status === "COMPLETED"
+                                ? { backgroundColor: "#28A745" }
+                                : entry.status === "IN_PROGRESS"
+                                  ? { backgroundColor: "#FFC107" }
+                                  : entry.status === "SCHEDULED"
+                                    ? { backgroundColor: "#17A2B8" }
+                                    : { backgroundColor: "#6C757D" },
+                            ]}
+                          />
+                          <View style={styles.timelineContent}>
+                            <Text style={styles.timelineStatus}>{entry.status}</Text>
+                            <Text style={styles.timelineTimestamp}>
+                              {new Date(entry.timestamp).toLocaleString()}
+                            </Text>
+                            <Text style={styles.timelineUser}>por {entry.user}</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {status === "COMPLETED" && (
+                    <>
+                      <Text style={styles.sectionTitle}>Firma digital:</Text>
+                      <View style={styles.signatureBox}>
+                        <SignatureCanvas
+                          ref={signatureRef}
+                          onOK={handleSignature}
+                          onBegin={() => setIsSigning(true)}
+                          onEnd={() => {
+                            setIsSigning(false);
+                            signatureRef.current?.readSignature(); // 👈 fuerza a ejecutar onOK con la dataURL
+                          }}
+                          descriptionText="Firma aquí"
+                          clearText="Borrar"
+                          confirmText="Guardar"
+                          webStyle={signatureWebStyle}
+                        />
+                      </View>
+                      <Button title="Reiniciar Firma" onPress={resetSignature} color="#3862CC" />
+                      <View style={styles.separatorSmall} />
+                      <Button title="Tomar Foto" onPress={takePhoto} color="#3862CC" />
+                      {photo && <Image source={{ uri: photo }} style={styles.previewImage} />}
+                    </>
+                  )}
+
+                  <View style={styles.separator} />
+                  <Button
+                    title="Actualizar Reporte"
+                    onPress={updateOrder}
+                    disabled={loading}
+                    color="#28A745"
+                  />
+                </>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.infoText}>No hay detalles disponibles.</Text>
+          )}
+        </ScrollView>
 
       </SafeAreaView>
     </SafeAreaProvider>
@@ -621,39 +644,39 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   rowBetween: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 8,
-  marginBottom: 6,
-},
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 6,
+  },
 
-iconButton: {
-  padding: 4,
-  borderRadius: 8,
-},
+  iconButton: {
+    padding: 4,
+    borderRadius: 8,
+  },
 
-addButton: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 6,
-  backgroundColor: "#EFF3FF",
-  paddingVertical: 8,
-  borderRadius: 10,
-  marginBottom: 10,
-},
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#EFF3FF",
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
 
-addButtonText: {
-  color: "#3862CC",
-  fontWeight: "600",
-},
+  addButtonText: {
+    color: "#3862CC",
+    fontWeight: "600",
+  },
 
-placeholderText: {
-  color: "#999",
-  fontStyle: "italic",
-  marginBottom: 6,
-},
+  placeholderText: {
+    color: "#999",
+    fontStyle: "italic",
+    marginBottom: 6,
+  },
 
 
 
