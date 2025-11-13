@@ -3,14 +3,15 @@ import { useWaitForConnection } from "@/hooks/useWaitForConnection";
 import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
 import {
-  savePendingRectification,
-  syncPendingRectification,
+  savePendingMessages,
+  syncPendingMessages,
 } from "@/lib/offline-messages";
 import { Message } from "@/types/message";
 import { router, useGlobalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -35,7 +36,7 @@ const TAG_OPTIONS = [
 ];
 
 export default function RectificationsScreen() {
-  const [messages, setMessages] = useState<Message[] | null>(null);;
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newRectification, setNewRectification] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const { orderId } = useGlobalSearchParams<{ orderId: string }>();
@@ -73,8 +74,9 @@ export default function RectificationsScreen() {
       });
       if (hasError) return;
 
-      setMessages(res.data?.messages ?? []);
-      console.log("✅ Mensajes:", res.data?.messages);
+      const data = res.data?.messages ?? [];
+      setMessages(Array.isArray(data) ? data : []);
+      console.log("✅ Mensajes cargados:", data);
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Error desconocido");
       console.error("Rectification fetch error:", err);
@@ -84,17 +86,17 @@ export default function RectificationsScreen() {
   }, [isOnline, orderId]);
 
   useEffect(() => {
-    if (!isPending && session && orderId && messages === null && isOnline !== null) {
+    if (!isPending && session && orderId && messages.length === 0 && isOnline !== null) {
       fetchRectification();
     }
-  }, [isPending, session, orderId, fetchRectification, messages, isOnline]);
+  }, [isPending, session, orderId, fetchRectification, isOnline]);
 
   // 🔹 Sincronizar pendientes al reconectarse
   useEffect(() => {
     const handleReconnect = async () => {
       if (isOnline && rectificationPending) {
         try {
-          await syncPendingRectification(baseURL, organizationSlug, authClient, isOnline);
+          await syncPendingMessages(baseURL, organizationSlug, authClient, isOnline);
           await fetchRectification();
           setRectificationPending(false);
         } catch (err) {
@@ -114,32 +116,28 @@ export default function RectificationsScreen() {
 
   // 🔹 Enviar nuevo mensaje
   const addRectification = async () => {
-    if (!session) return;
+    if (!session || !orderId) return;
     if (!newRectification.trim()) return;
     if (selectedTags.length === 0) {
       Alert.alert("Selecciona al menos una etiqueta", "Debes elegir una o más antes de enviar.");
       return;
     }
 
-    const content = newRectification.trim();
     const timestamp = new Date().toISOString();
-
-    const bodyData: any = {
-      text: content,
+    const bodyData: Message = {
+      content: newRectification.trim(),
       tags: selectedTags,
-
     };
 
-    console.log("BodyData = ",bodyData);
+    console.log("📤 Enviando mensaje:", bodyData);
     setNewRectification("");
     setSelectedTags([]);
-
 
     try {
       setLoading(true);
       if (!isOnline) {
         setRectificationPending(true);
-        await savePendingRectification(orderId!, bodyData);
+        await savePendingMessages(orderId, bodyData);
         Alert.alert("Sin conexión", "Guardado localmente. Se sincronizará al reconectarse.");
         return;
       }
@@ -183,27 +181,40 @@ export default function RectificationsScreen() {
           >
             {loading ? (
               <Text style={styles.emptyText}>Cargando...</Text>
-            ) : messages === null ? (
-              <Text style={styles.emptyText}>Cargando datos...</Text>
-            ): messages.length === 0 ? (
+            ) : messages.length === 0 ? (
               <Text style={styles.emptyText}>No hay mensajes aún.</Text>
             ) : (
-              messages.map((msg, index) => {
+              messages.map((msg) => {
                 const isUser = msg.memberId === user?.id;
                 return (
                   <View
-                    key={msg.id ?? index}
+                    key={msg.id ?? msg.createdAt}
                     style={[
                       styles.messageBubble,
                       isUser ? styles.userBubble : styles.otherBubble,
                     ]}
                   >
-                    <Text style={styles.authorText}>
-                      {msg.author?.name} ({msg.author?.role})
-                    </Text>
+                    <View style={styles.headerRow}>
+                      {msg.sender?.user?.image ? (
+                        <Image
+                          source={{ uri: msg.sender?.user.image }}
+                          style={styles.avatar}
+                        />
+                      ) : (
+                        <View style={styles.placeholderAvatar}>
+                          <Text style={{ color: "#FFF" }}>
+                            {msg.sender?.user?.name?.[0] ?? "?"}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={styles.authorText}>
+                        {msg.sender?.user?.name} ({msg.sender?.user?.role})
+                      </Text>
+                    </View>
+
                     <Text style={styles.messageText}>{msg.content}</Text>
 
-                    {/* Muestra todos los tags */}
+                    {/* 🔹 Tags */}
                     <View style={styles.tagList}>
                       {msg.tags?.map((tag) => (
                         <View key={tag} style={styles.tagBadge}>
@@ -213,15 +224,16 @@ export default function RectificationsScreen() {
                     </View>
 
                     <Text style={styles.timeText}>
-                      {new Date(msg.createdAt).toLocaleString()}
+                      {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : "Fecha no disponible"}
                     </Text>
+
                   </View>
                 );
               })
             )}
           </ScrollView>
 
-          {/* Selector de Tags */}
+          {/* 🔹 Selector de tags */}
           <View style={styles.tagContainer}>
             {TAG_OPTIONS.map((tag) => (
               <TouchableOpacity
@@ -244,7 +256,7 @@ export default function RectificationsScreen() {
             ))}
           </View>
 
-          {/* Input + Enviar */}
+          {/* 🔹 Input + Enviar */}
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
@@ -277,7 +289,7 @@ const styles = StyleSheet.create({
   messagesContainer: { paddingBottom: 120 },
   emptyText: { textAlign: "center", color: "#555", marginTop: 30 },
   messageBubble: {
-    maxWidth: "80%",
+    maxWidth: "85%",
     padding: 10,
     borderRadius: 10,
     marginVertical: 6,
@@ -290,34 +302,32 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     backgroundColor: "#E4E8F5",
   },
-  authorText: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#222",
-    marginBottom: 4,
+  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 8,
   },
-  messageText: {
-    fontSize: 15,
-    color: "#000",
-    marginBottom: 4,
+  placeholderAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#273F7D",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
-  tagList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 4,
-  },
+  authorText: { fontSize: 12, fontWeight: "bold", color: "#222" },
+  messageText: { fontSize: 15, color: "#000", marginTop: 2 },
+  tagList: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   tagBadge: {
     backgroundColor: "#273F7D",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  tagText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  tagText: { color: "#FFF", fontSize: 12, fontWeight: "600" },
   timeText: {
     fontSize: 10,
     color: "#ccc",
@@ -339,9 +349,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  tagButtonSelected: {
-    backgroundColor: "#3862CC",
-  },
+  tagButtonSelected: { backgroundColor: "#3862CC" },
   tagButtonText: { color: "#3862CC", fontSize: 13 },
   tagButtonTextSelected: { color: "#FFF", fontWeight: "bold" },
   inputContainer: {
