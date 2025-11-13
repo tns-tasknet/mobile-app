@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const baseURL = process.env.EXPO_PUBLIC_API_URL;
 const organizationSlug = process.env.EXPO_PUBLIC_ORG;
 
-export default function Home() {
+export default function Reports() {
   const { data: session, isPending } = authClient.useSession();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

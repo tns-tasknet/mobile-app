@@ -2,15 +2,14 @@ import { useNetwork } from "@/hooks/useNetwork";
 import { useWaitForConnection } from "@/hooks/useWaitForConnection";
 import { handleApiError } from "@/lib/api/handleApiError";
 import { authClient } from "@/lib/auth-client";
-import {
-  savePendingMessages,
-  syncPendingMessages,
-} from "@/lib/offline-messages";
+import { savePendingMessages, syncPendingMessages } from "@/lib/offline-messages";
 import { Message } from "@/types/message";
 import { router, useGlobalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
+  Easing,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -19,41 +18,44 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const baseURL = process.env.EXPO_PUBLIC_API_URL!;
 const organizationSlug = process.env.EXPO_PUBLIC_ORG!;
+const TAG_OPTIONS = ["avance", "pregunta", "bloqueo", "riesgo", "materiales", "coordinacion"];
 
-const TAG_OPTIONS = [
-  "avance",
-  "pregunta",
-  "bloqueo",
-  "riesgo",
-  "materiales",
-  "coordinacion",
-];
-
-export default function RectificationsScreen() {
+export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [newRectification, setNewRectification] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [rectificationPending, setRectificationPending] = useState(false);
   const { orderId } = useGlobalSearchParams<{ orderId: string }>();
   const { data: session, isPending } = authClient.useSession();
-  const [loading, setLoading] = useState(false);
-  const [rectificationPending, setRectificationPending] = useState(false);
   const isOnline = useNetwork();
   const waitForConnection = useWaitForConnection();
   const scrollViewRef = useRef<ScrollView>(null);
-
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const user = session?.user as any;
 
   useEffect(() => {
     if (!isPending && !session) router.replace("/login");
   }, [session, isPending]);
 
-  // 🔹 Obtener mensajes
+  // --- Animación premium ---
+  const startFade = (to: number) => {
+    Animated.timing(fadeAnim, {
+      toValue: to,
+      duration: 600,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // --- Cargar mensajes ---
   const fetchMessages = useCallback(async () => {
     if (!orderId) return;
     try {
@@ -61,27 +63,25 @@ export default function RectificationsScreen() {
         Alert.alert("Sin conexión", "Se reintentará al reconectarse.");
         return;
       }
-
       setLoading(true);
+      startFade(0.3);
+
       const res = await authClient.$fetch<any>(
         `${baseURL}/api/v1/${organizationSlug}/orders/${orderId}/messages`,
         { method: "GET" }
       );
 
-      const hasError = await handleApiError(res, {
-        onConflictReload: fetchMessages,
-        isOnline,
-      });
+      const hasError = await handleApiError(res, { onConflictReload: fetchMessages, isOnline });
       if (hasError) return;
 
       const data = res.data?.messages ?? [];
       setMessages(Array.isArray(data) ? data : []);
-      console.log("✅ Mensajes cargados:", data);
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Error desconocido");
       console.error("Rectification fetch error:", err);
     } finally {
       setLoading(false);
+      startFade(1);
     }
   }, [isOnline, orderId]);
 
@@ -91,7 +91,7 @@ export default function RectificationsScreen() {
     }
   }, [isPending, session, orderId, fetchMessages, messages, isOnline]);
 
-  // 🔹 Sincronizar pendientes al reconectarse
+  // --- Sincronizar al reconectarse ---
   useEffect(() => {
     const handleReconnect = async () => {
       if (isOnline && rectificationPending) {
@@ -107,34 +107,22 @@ export default function RectificationsScreen() {
     handleReconnect();
   }, [isOnline, rectificationPending]);
 
-  // 🔹 Alternar selección de tags
+  // --- Tags ---
   const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   };
 
-  // 🔹 Enviar nuevo mensaje
+  // --- Enviar mensaje ---
   const addRectification = async () => {
-    if (!session || !orderId) return;
-    if (!newRectification.trim()) return;
-    if (selectedTags.length === 0) {
-      Alert.alert("Selecciona al menos una etiqueta", "Debes elegir una o más antes de enviar.");
-      return;
-    }
+    if (!session || !orderId || !newRectification.trim() || selectedTags.length === 0) return;
 
-    const timestamp = new Date().toISOString();
-    const bodyData: Message = {
-      text: newRectification.trim(),
-      tags: selectedTags,
-    };
-
-    console.log("📤 Enviando mensaje:", bodyData);
+    const bodyData: Message = { text: newRectification.trim(), tags: selectedTags };
     setNewRectification("");
     setSelectedTags([]);
+    setSending(true);
+    startFade(0.4);
 
     try {
-      setLoading(true);
       if (!isOnline) {
         setRectificationPending(true);
         await savePendingMessages(orderId, bodyData);
@@ -151,128 +139,110 @@ export default function RectificationsScreen() {
         }
       );
 
-      const hasError = await handleApiError(res, {
-        onConflictReload: fetchMessages,
-        isOnline,
-      });
+      const hasError = await handleApiError(res, { onConflictReload: fetchMessages, isOnline });
       if (hasError) return;
 
       await fetchMessages();
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Error desconocido");
-      console.error(err);
     } finally {
-      setLoading(false);
+      setSending(false);
+      startFade(1);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.chatContainer}>
-          <ScrollView
-            ref={scrollViewRef}
-            keyboardShouldPersistTaps="handled"
-            onContentSizeChange={() =>
-              scrollViewRef.current?.scrollToEnd({ animated: true })
-            }
-            contentContainerStyle={styles.messagesContainer}
-            showsVerticalScrollIndicator={false}
-          >
-            {loading || messages === null ? (
-              <Text style={styles.emptyText}>Cargando...</Text>
-            ) : messages.length === 0 ? (
-              <Text style={styles.emptyText}>No hay mensajes aún.</Text>
-            ) : (
-              messages.map((msg) => {
-  // 🔹 Detección robusta de si el mensaje es del usuario autenticado
-  const isUser =
-            msg.sender?.userId === user?.id 
+          <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+            <ScrollView
+              ref={scrollViewRef}
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+              contentContainerStyle={styles.messagesContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              {loading || messages === null ? (
+                <View>
+                  {[...Array(4)].map((_, i) => (
+                    <View key={i} style={styles.skeletonBubble} />
+                  ))}
+                </View>
+              ) : messages.length === 0 ? (
+                <Text style={styles.emptyText}>No hay mensajes aún.</Text>
+              ) : (
+                messages.map((msg) => {
+                  const isUser = msg.sender?.userId === user?.id;
+                  return (
+                    <View
+                      key={msg.id ?? msg.createdAt}
+                      style={[
+                        styles.messageWrapper,
+                        isUser ? { alignItems: "flex-end" } : { alignItems: "flex-start" },
+                      ]}
+                    >
+                      {!isUser && (
+                        <View style={styles.headerRow}>
+                          {msg.sender?.user?.image ? (
+                            <Image source={{ uri: msg.sender.user.image }} style={styles.avatar} />
+                          ) : (
+                            <View style={styles.placeholderAvatar}>
+                              <Text style={{ color: "#FFF" }}>{msg.sender?.user?.name?.[0] ?? "?"}</Text>
+                            </View>
+                          )}
+                          <Text style={styles.authorText}>
+                            {msg.sender?.user?.name ?? "Usuario"}{" "}
+                            <Text style={{ color: "#777" }}>({msg.sender?.user?.role ?? "sin rol"})</Text>
+                          </Text>
+                        </View>
+                      )}
 
-  return (
-    <View
-      key={msg.id ?? msg.createdAt}
-      style={[
-        styles.messageWrapper,
-        isUser ? { alignItems: "flex-end" } : { alignItems: "flex-start" },
-      ]}
-    >
-      {!isUser && (
-        <View style={styles.headerRow}>
-          {msg.sender?.user?.image ? (
-            <Image
-              source={{ uri: msg.sender.user.image }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={styles.placeholderAvatar}>
-              <Text style={{ color: "#FFF" }}>
-                {msg.sender?.user?.name?.[0] ?? "?"}
-              </Text>
-            </View>
-          )}
-          <Text style={styles.authorText}>
-            {msg.sender?.user?.name ?? "Usuario"}{" "}
-            <Text style={{ color: "#777" }}>
-              ({msg.sender?.user?.role ?? "sin rol"})
-            </Text>
-          </Text>
-        </View>
-      )}
+                      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.otherBubble]}>
+                        <Text style={[styles.messageText, isUser ? { color: "#FFF" } : { color: "#222" }]}>
+                          {msg.content ?? msg.text}
+                        </Text>
 
-      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.otherBubble]}>
-        <Text
-          style={[
-            styles.messageText,
-            isUser ? { color: "#FFF" } : { color: "#222" },
-          ]}
-        >
-          {msg.content ?? msg.text}
-        </Text>
+                        {msg.tags?.length > 0 && (
+                          <View style={styles.tagList}>
+                            {msg.tags.map((tag) => (
+                              <View
+                                key={tag}
+                                style={[
+                                  styles.tagBadge,
+                                  isUser ? { backgroundColor: "#FFF2", borderWidth: 0 } : null,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.tagText,
+                                    isUser ? { color: "#FFF" } : { color: "#273F7D" },
+                                  ]}
+                                >
+                                  #{tag}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
 
-        {msg.tags?.length > 0 && (
-          <View style={styles.tagList}>
-            {msg.tags.map((tag) => (
-              <View
-                key={tag}
-                style={[
-                  styles.tagBadge,
-                  isUser ? { backgroundColor: "#FFF2", borderWidth: 0 } : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tagText,
-                    isUser ? { color: "#FFF" } : { color: "#273F7D" },
-                  ]}
-                >
-                  #{tag}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <Text
-          style={[
-            styles.timeText,
-            isUser ? { color: "#E6E6E6" } : { color: "#888" },
-          ]}
-        >
-          {msg.createdAt
-            ? new Date(msg.createdAt).toLocaleString()
-            : "Fecha no disponible"}
-        </Text>
-      </View>
-    </View>
-  );
-})
-            )}
-          </ScrollView>
+                        <Text
+                          style={[
+                            styles.timeText,
+                            isUser ? { color: "#E6E6E6" } : { color: "#888" },
+                          ]}
+                        >
+                          {msg.createdAt
+                            ? new Date(msg.createdAt).toLocaleString()
+                            : "Fecha no disponible"}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </Animated.View>
 
           <View style={styles.tagContainer}>
             {TAG_OPTIONS.map((tag) => (
@@ -298,8 +268,9 @@ export default function RectificationsScreen() {
 
           <View style={styles.inputContainer}>
             <TextInput
-              style={styles.input}
-              placeholder="Escribe un mensaje..."
+              style={[styles.input, sending && { opacity: 0.6 }]}
+              placeholder={sending ? "Enviando..." : "Escribe un mensaje..."}
+              editable={!sending}
               placeholderTextColor="#999"
               value={newRectification}
               onChangeText={setNewRectification}
@@ -308,14 +279,14 @@ export default function RectificationsScreen() {
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                (!newRectification.trim() || selectedTags.length === 0) && {
+                (!newRectification.trim() || selectedTags.length === 0 || sending) && {
                   backgroundColor: "#AAA",
                 },
               ]}
               onPress={addRectification}
-              disabled={!newRectification.trim() || selectedTags.length === 0}
+              disabled={!newRectification.trim() || selectedTags.length === 0 || sending}
             >
-              <Text style={styles.sendButtonText}>Enviar</Text>
+              <Text style={styles.sendButtonText}>{sending ? "..." : "Enviar"}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -329,7 +300,15 @@ const styles = StyleSheet.create({
   chatContainer: { flex: 1, padding: 10 },
   messagesContainer: { paddingBottom: 120 },
   emptyText: { textAlign: "center", color: "#555", marginTop: 30 },
-
+  skeletonBubble: {
+    height: 60,
+    width: "70%",
+    backgroundColor: "#E0E3EC",
+    borderRadius: 16,
+    marginVertical: 6,
+    alignSelf: Math.random() > 0.5 ? "flex-start" : "flex-end",
+    opacity: 0.4,
+  },
   tagContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -406,21 +385,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderBottomLeftRadius: 4,
   },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginRight: 8,
-  },
+  messageText: { fontSize: 15, lineHeight: 20 },
+  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  avatar: { width: 28, height: 28, borderRadius: 14, marginRight: 8 },
   placeholderAvatar: {
     width: 28,
     height: 28,
@@ -430,32 +397,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 8,
   },
-  authorText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#273F7D",
-  },
-  tagList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 6,
-    gap: 6,
-  },
-  tagBadge: {
-    borderWidth: 1,
-    borderColor: "#273F7D",
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  tagText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  timeText: {
-    fontSize: 10,
-    marginTop: 6,
-    alignSelf: "flex-end",
-  },
+  authorText: { fontSize: 12, fontWeight: "600", color: "#273F7D" },
+  tagList: { flexDirection: "row", flexWrap: "wrap", marginTop: 6, gap: 6 },
+  tagBadge: { borderWidth: 1, borderColor: "#273F7D", borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  tagText: { fontSize: 11, fontWeight: "600" },
+  timeText: { fontSize: 10, marginTop: 6, alignSelf: "flex-end" },
 });
-
